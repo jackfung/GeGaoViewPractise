@@ -1,0 +1,37 @@
+【创建ContentProvider步骤】
+
+1：
+该类的onCreate()函数里声明一个SQLiteOpenHelper类对象，该对象会在ContentProvider类的
+insert(),update(),delete()方法里边使用。
+
+2：
+在AndroidManifest.xml里添加<provider>标签
+
+1:实际数据库是在什么时候创建的呢？
+根据实验，在创建好ContentProvider的子类，并且在AndroidManifest.xml里添加<provider>标签后，
+观察相关数据库没有创建；
+在当调用了 insert()方法后，相关数据库才创建出来！
+ 
+【ContentProvider Uri注册ContentObserver】
+13716119987 
+
+
+
+
+注册代码：
+mContentResolver.registerContentObserver(GaoGeProviderConstants.TABLE1_CONTENT_URI, true, new MyProviderContentObserver());
+
+这个在GaoGeProviderConstants.TABLE1_CONTENT_URI发生变化的时候，不会自动执行MyProviderContentObserver的onChange()方法，还需要
+在ContentProvier的insert(),update(),delete()方法中显示调用notifyChange()方法，具体代码如下：
+
+this.getContext().getContentResolver().notifyChange(uri, null);第二个参数可以为null
+
+【dbname和authority的关系】
+content://com.gaoge.test.provider/gaoge_table1
+
+因为com.gaoge.test.provider对应的CotentProvider 是MyTestContentProvider，而在该类的onCreate()
+函数里调用了DatabaseHelper,该类的构造函数里创建了一个名字为gaoge_test_provider.db的数据库，
+所以ContentReslover就可以通过Uri content://com.gaoge.test.provider/gaoge_table1来找到对应
+的gaoge_test_provider.db的表gaoge_table1
+
+

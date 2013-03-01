@@ -1,0 +1,14 @@
+String language = Locale.getDefault().getLanguage();
+        String country = Locale.getDefault().getCountry();
+//        LogHelper.d("strings", "homepage_base: " + homepage_base);
+        LogHelper.d("language", "language: " + language + ",country: " + country);
+        
+D/language( 2741): language: cs,country: CZ
+D/language( 2741): language: cs,country: CZ
+D/language( 2741): language: cs,country: CZ
+D/language( 2741): language: zh,country: CN
+D/language( 2741): language: fr,country: CA
+
+SIM country:
+{\"country\":\"cn\",\"language\":\"zh\",\"home_url\":\"http://mobile.threepassnine.com/\"},
+{\"country\":\"fr\",\"language\":\"fr\",\"home_url\":\"http://www.orangemobileapp.com/\"}

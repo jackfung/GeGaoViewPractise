@@ -1,0 +1,2631 @@
+﻿eclipse导入项目的时候报错：
+[2011-07-12 14:42:59 - NotificationSummary] ERROR: Unable to open class file D:\LockScreen-src\Lockscreen_Final_3\NotificationSummary\gen\com\orange\notificationsummary\R.java: No such file or directory
+
+解决方案：
+对着该工程鼠标右键-》bulid path-》configure build path-》java build path-》order and Export 
+
+把里面的android 2.2勾上（或去掉）（我的是2.2）
+
+
+锁屏的时候会自动显示锁屏页面，这个可能是根据Lockscreen的AndroidManifest.xml中的如下配置信息得到的：
+<application android:icon="@drawable/icon" android:label="@string/app_name"
+		android:debuggable="false">
+		<meta-data android:name="android.lockscreen.ENTRY"
+			android:value="com.orange.lockscreen.LockscreenManager">
+		</meta-data>
+	</application>
+
+点亮屏幕的时候：
+D/MainActivity( 1150): startTrackingApplications(): monitor(com.orange.homescreen.pil.defaultimpl.application.App
+D/MainActivity( 1150): startTrackingApplications(): sdmon(com.orange.homescreen.pil.android22impl.application.SDC
+D/SDCardAppsMonitor( 1150): addListener(): listener(com.orange.homescreen3x.MainActivity$8@4082b750)
+D/MessageProvider(  334): uri:content://com.orange.vvm.service.provider/message arg:unread
+D/MessageProvider(  334): select _id,fromNumber,date,status from vvm_msg where folder like 'INBOX' and status =1
+
+关闭屏幕的时候：
+I/power   (  158): *** set_screen_state 0
+D/***************( 1150): close dialogs
+D/MainActivity( 1150): saveState(): outState(Bundle[{launcher.all_apps_folder=true, launcher.current_screen=2}])
+D/DgilGestureOverlayView( 1150): onPause
+D/WidgetThumbnailsView( 1150): snapToCurrentScreenWithoutScrolling(): delta = -4800000
+I/ActivityManager(  158): No longer want com.android.browser (pid 1237): hidden #16
+I/WindowManager(  158): WIN DEATH: Window{408ce768 com.android.browser/com.android.browser.BrowserActivity paused=false}
+I/WindowManager(  158): WIN DEATH: Window{408f8508 com.android.browser/com.android.browser.BrowserActivity paused=false}
+
+
+点亮屏幕的时候，视图就是LockscreenView，分析一下该类的构成，
+在LockscreenView的onCreate()函数中，做了以下操作：
+一：SlatHashMap.init()
+在该函数里，通过for循环创建四个SlatInfo，分别代表相应的时间，事件(这里没做任何处理)，音乐，解锁，并设置它们的SlatInfo.mSlatType，然后将这四个SlatInfo添加到sSlatInfos里；然后再通过调用initWidgetViewInfo()方法往集合sWidgetViewInfos里放入三个WidgetViewInfo(time,event,music)
+
+二:创建了一个主线程的Handler
+mHandler = new LCMessageHandler();
+在类 LCMessageHandler的handleMessage方法里，都是诸如以下操作：
+case MSG_SLIDER_SELECTED:
+				doWorkOnSliderSelected(rowIndex);
+				break;
+			case MSG_SLIDER_VISBLE:
+				doWorkOnSliderVisble(rowIndex);
+				break;
+在这些doWork方法里，就会调用相应的panel,如SlideSlatPanel,SwipePanel等的相关方法，
+
+三:init(context);
+在该方法里：
+private void init(Context context) {
+		initLayers(context);//Create WidgetSlatPanel, SliderSlatPanel, SwipePanel,TapPanel, TipSlatPanel; and add them into root view.
+		initBackgroundWallpaper();
+		initMediaPlayer(context);
+		// initVibrator(context);
+		initWidgetLayerPanelGrid();
+	}
+
+
+*******************************************************************WidgetSlatPanel**********************************************************
+在initLayers(context);里创建了所有的panel,详细分析第一个panel WidgetSlatPanel的创建
+// init the 1st layer
+		mWidgetLayer = new WidgetSlatPanel(context);
+		mWidgetLayer.init(mHandler);
+		rootLayout.addView(mWidgetLayer);
+这里，mWidgetLayer在调用init(Handler)（父类SlatPanel的方法）的时候，将LockscreenView的handler传递进去，并且回调钩子函数
+
+public void init(Handler handler) {
+		mHandler = handler;
+		LayoutParams params = new LayoutParams(LayoutParams.FILL_PARENT,
+				LayoutParams.FILL_PARENT);
+		setLayoutParams(params);
+		init();
+	}
+所以这里要看子类WidgetSlatPanel的init()方法：
+
+@Override
+	protected void init() {
+		Context context = getContext();
+		int slatCount = SlatHashMap.getCount();
+		mWidgetSlats = new ArrayList<WidgetSlat>(slatCount);
+		for (int i = 0; i < slatCount; i++) {
+			WidgetSlat slat = new WidgetSlat(context, i);
+			if (i == SlatHashMap.MUSIC_WIDGET_ROWINDEX) {
+				slat.setMusicControlListener(this);
+			}
+			addView(slat);
+			mWidgetSlats.add(slat);
+		}
+	}
+
+这里又出现了类WidgetSlat ，得分析一下这个类。这个类的构造函数：persist habit
+public WidgetSlat(Context context, int rowIndex) {
+		super(context);
+		mRowIndex = rowIndex;
+		initUi(context);
+	}
+
+在WidgetSlat的initUi方法里，创建了mCoverLayer(具体哪张图片还不清楚)，mGripLayer(music上的右向箭头)，mLock(锁图片)，这里有个疑问，就是在每个WidgetSlat的initUi方法里都会创建这三个ImageView,并addView，但是在WidgetSlatPanel中却循环了4次，这且不是3*4=12次了吗？但是在initUi方法里又调用了invalidateUi()方法，这里边根据条件对之前的三张图片进行了一些INVISIBLE和VISIBLE操作，这个以后再细看。
+
+*******************************************************************SliderSlatPanel**********************************************************
+
+protected void init() {
+		mSliderSlat = new SliderSlat(getContext());
+		mSliderSlat.setOnSliderMotionLisenter(this);
+		addView(mSliderSlat);
+		mGestureDetector = new LSGestureDetector(this);
+	}
+在类SliderSlat中：
+protected void init() {
+		mLayoutParams = new LayoutParams();
+		setLayoutParams(mLayoutParams);
+
+		LayoutInflater inflater = LayoutInflater.from(getContext());
+		View viewGroup = inflater.inflate(R.layout.layout_slider_slat, this,
+				true);
+		mDimmerView = (ImageView) viewGroup
+				.findViewById(R.id.layout_slider_slat_dimmer);
+		mSnapshotView = (ImageView) viewGroup
+				.findViewById(R.id.layout_slider_slat_snapshot);
+		mRightShadowView = (ImageView) viewGroup
+				.findViewById(R.id.layout_slider_slat_right_shadow);
+		mLeftShadowView = (ImageView) viewGroup
+				.findViewById(R.id.layout_slider_slat_left_shadow);
+
+		this.setVisibility(INVISIBLE);
+	}
+这个layout_slider_slat.xml代表UI中的哪一个操作呢？用到了slat_open_shadow.9.png,但是不知道该图片会在什么操作中出现。
+并且在LockscreenView中，有mSliderLayer.setWidgetLayer(mWidgetLayer);这又是什么意思呢？
+
+*******************************************************************SwipePanel**********************************************************
+类SwipePanel的方法：
+protected void init() {
+		mH = new H();
+		
+		mSwipeSlat = new CircleSlat(getContext());
+		mSwipeSlat.setClipChildren(true);
+		addView(mSwipeSlat);
+		
+		mFirstCircle = mSwipeSlat.getFirstCircleView();
+		mSecondCircle = mSwipeSlat.getSecondCircleView();
+		
+		mAlphaAnimation1 = AnimationUtils.loadAnimation(getContext(),
+				R.anim.swipe_anim);
+		mAlphaAnimation2 = AnimationUtils.loadAnimation(getContext(),
+				R.anim.swipe_anim);
+	}
+
+在类CircleSlat中，包含了解锁时，双击的时候出现的两个圆圈，在该类的方法：
+private void init(Context context) {
+		mFirstCircle = new ImageView(getContext());
+		mFirstCircle.setImageResource(R.drawable.ic_first_circle);
+		mFirstCircle.setScaleType(ScaleType.CENTER);
+		mFirstCircle.setVisibility(INVISIBLE);
+		addView(mFirstCircle);
+
+		mSecondCircle = new ImageView(getContext());
+		mSecondCircle.setImageResource(R.drawable.ic_first_circle);
+		mSecondCircle.setScaleType(ScaleType.CENTER);
+		mSecondCircle.setVisibility(INVISIBLE);
+		addView(mSecondCircle);
+	}
+
+*******************************************************************TapPanel**********************************************************
+类TapPanel的方法：
+@Override
+	protected void init() {
+		mH = new H();
+		
+		mTapSlat = new CircleSlat(getContext());
+		mTapSlat.setClipChildren(true);
+		addView(mTapSlat);
+		
+		mFirstCircle = mTapSlat.getFirstCircleView();
+		mSecondCircle = mTapSlat.getSecondCircleView();
+		
+		mAlphaAnimation1 = AnimationUtils.loadAnimation(getContext(),
+				R.anim.tap_anim);
+		mAlphaAnimation2 = AnimationUtils.loadAnimation(getContext(),
+				R.anim.tap_anim);
+	}
+TapPanel好像和SwipePanel的init()方法有些像，
+
+*******************************************************************TipSlatPanel**********************************************************
+类TipSlatPanel的方法：
+protected void init() {
+		mH = new H();
+
+		mAlphaAnimation = AnimationUtils.loadAnimation(getContext(),
+				R.anim.anim);
+		mAlphaAnimation.setAnimationListener(this);
+
+		mTipTextView = new TextView(getContext());
+		mTipTextView.setText(R.string.tip_unlock);
+		mTipTextView.setTextSize(15.0f);
+		mTipTextView.setTypeface(Typeface.SANS_SERIF);
+		mTipTextView.setTextColor(WHITH_COLOR_100);
+		mTipTextView.setBackgroundResource(R.drawable.toast_frame);
+		mTipTextView.setGravity(Gravity.CENTER_HORIZONTAL);
+		addView(mTipTextView);
+
+		mTipTextView.setVisibility(INVISIBLE);
+	}
+类TipSlatPanel的init方法稍微简单些，没有用相应的slat,这个Panel应该就是一个Double-tap to unlock文字的提示。
+
+四：添加 timeView
+mHandler.post(new Runnable() {
+
+			@Override
+			public void run() {
+				if (null != mWidgetLayer) {
+					boolean isDevicePluggedIn = isDevicePluggedIn();
+					int batteryLevel = getBatteryLevel();
+					TimeDateView view = new TimeDateView(mContext,
+							isDevicePluggedIn, batteryLevel);
+					mWidgetLayer.addNativeView(view);
+					setTimeDateViewCallback(view);
+				}
+			}
+		});
+
+
+
+*******************************************************************************************************************************************
+下面确定一下不同手势对应的Slider_Msg type.
+在LocksreenView的LCMessageHandler里
+1：
+a:
+手指迅速点击一下(time layer,event layer,lock layer)， log是:
+D/LockscreenView(  158): ################ msg.what: 4101,rowIndex: 0 //public int MSG_SLIDER_CATCH_ON = 0x1005;
+D/LockscreenView(  158): ################ msg.what: 4103,rowIndex: 3 //public int MSG_SLIDER_SINGLE_TAP = 0x1007;
+D/LockscreenView(  158): ################ msg.what: 4102,rowIndex: 0 //public int MSG_SLIDER_CATCH_OFF = 0x1006;
+
+b:手指迅速点击一下(music layer)， log是:
+D/LockscreenView(  158): ################ msg.what: 4098,rowIndex: 2 //public int MSG_SLIDER_CLOSED = 0x1002;
+D/LockscreenView(  158): ################ msg.what: 4096,rowIndex: 2 //public int MSG_SLIDER_SELECTED = 0x1000;
+D/LockscreenView(  158): ################ msg.what: 4100,rowIndex: 2 //public int MSG_SLIDER_VISBLE = 0x1004;
+D/LockscreenView(  158): ################ msg.what: 4101,rowIndex: 0
+D/LockscreenView(  158): ################ msg.what: 4103,rowIndex: 2
+D/LockscreenView(  158): ################ msg.what: 4102,rowIndex: 0
+D/LockscreenView(  158): ################ msg.what: 4099,rowIndex: 2 //public int MSG_SLIDER_HIT_BROAD = 0x1003;
+D/LockscreenView(  158): ################ msg.what: 4098,rowIndex: 2
+
+2:手指在music layer上向右滑动，
+D/LockscreenView(  158): ################ msg.what: 4096,rowIndex: 2
+D/LockscreenView(  158): ################ msg.what: 4100,rowIndex: 2
+D/LockscreenView(  158): ################ msg.what: 4101,rowIndex: 0
+D/LockscreenView(  158): ################ msg.what: 4097,rowIndex: 2 //public int MSG_SLIDER_OPENED = 0x1001;
+D/LockscreenView(  158): ################ msg.what: 4102,rowIndex: 0
+
+3:手指在music layer上向左滑动：
+D/LockscreenView(  158): ################ msg.what: 4101,rowIndex: 0
+D/LockscreenView(  158): ################ msg.what: 4099,rowIndex: 2
+D/LockscreenView(  158): ################ msg.what: 4098,rowIndex: 2
+D/LockscreenView(  158): ################ msg.what: 4102,rowIndex: 0
+
+现在大概知道个各种手势对应的Slider_Msg type了，那么是如何通过handler发送消息呢，之前看到在实例化各个panel的时候，会把mHandler传给各个panel,难道是在各个panel的onTouchEvent里通过handler发送消息吗？确认一下，猜测的差不多，
+
+1：
+例如在WidgetSlatPanel类里，发送消息的机制如下所示：
+@Override
+	public void onDown(int rowIndex) {
+		sendMessage(Slider_Msg.MSG_CONTROL_LONG_CATCH_ON, rowIndex);
+	}
+	
+	@Override
+	public void onUp(int rowIndex) {
+		sendMessage(Slider_Msg.MSG_CONTROL_LONG_CATCH_OFF, rowIndex);
+	}
+	
+	private void sendMessage(int what, int rowIndex) {
+		Message msg = mHandler.obtainMessage();
+		msg.what = what;
+		msg.arg1 = rowIndex;
+		mHandler.sendMessage(msg);
+	}
+这里要注意的是这个onDown(),onUp()并不是android中View自带的方法，而是这个接口的方法：
+
+public interface OnMusicControlTouchListener {
+		public void onDown(int rowIndex);
+		public void onUp(int rowIndex);
+	}
+
+这里WidgetSlatPanel和WidgetSlat的关系是，在WidgetSlat里定义了一个接口(OnMusicControlTouchListener)，然后WidgetSlatPanel实现了该接口，并且在WidgetSlatPanel的init方法里，设置了自己是WidgetSlat的listener。而在WidgetSlat里在注册对上一首，下一首按钮监听器的时候，调用了listener(WidgetSlatPanel)的onUp()和onDown()方法。
+
+2：
+SliderSlatPanel和SliderSlat的关系。
+SliderSlat类里有接口OnSliderMotionListener，SliderSlatPanel实现了该接口
+
+public interface OnSliderMotionListener {
+		public void onSliderOpened(int rowIndex);
+
+		public void onSliderClosed(int rowIndex);
+
+		public void onSliderHitBroad(int rowIndex);
+
+		public void onSliderMoving(int rowIndex, int xOffset);
+	}
+
+在SliderSlat的move()方法中，调用了这些接口中的方法，而move()方法又被onTouchEvent(MotionEvent event)和restoreSlat()方法(该方法又和一些动画方法联系在了一起，这里先不深入分析了)调用。
+
+
+*******************************************************************************************************************************************
+其他的panel和slat的关系就先不分析了，接下来把音乐播放这块仔细分析一下，这块应该是最难的，这块分析透彻了，其他的就很简单了。
+
+没有播放音乐的时候,music layer上有一个string "No track selected"
+
+在这之前，先分析一下LocksreenService这个类。
+之前分析，LockscreenManager这个类是lockscreen的entry,在这个类里：
+
+public static ExtLockScreen getLockscreen(Context context) {
+		if (Constants.LOG_SERVER) {
+			Log.e(TAG, "getLockscreen");
+		}
+		ExtLockScreen view = null;
+		view = LockscreenService.getInstance(context).getLockscreenView(context);
+		if (null == view) {
+			if (Constants.LOG_SERVER) {
+				Log.e(TAG, "ExtLockScreen is null!");
+			}
+		}
+		if (Constants.LOG_SERVER) {
+			Log.e(TAG, "return ExtLockScreen.");
+		}
+		return view;
+	}
+
+可见这个LockscreenView是通过LockscreenService类的etLockscreenView()得到的，在etLockscreenView()方法里：
+先通过LockScreenPreferences.init(context);得到一些SharedPreference的设置信息，然后
+
+mLockscreenView = new LockscreenView(context, mLSService);
+					if (null != mContext) {
+						mIsCleanUp = false;
+						IntentFilter filter = new IntentFilter();
+						filter.addAction(ACTION_READY);
+						mContext.registerReceiver(mReceiver, filter);
+						registerCount++;
+					}
+					startLSWidgetService();
+					return mLockscreenView;
+
+startLSWidgetService()就会启动项目Locksreen_service里的service类com.orange.lswidget.LSWidgetService，并且注册了一个广播接收器，这个广播接收器是用来接收从LSWidgetService传来的广播，因为在LSWidgetService的onStart()方法里，在加载完一些LSWidgetList后，就会发送systemReady的广播。好，接着分析com.orange.lswidget.LSWidgetService这个类。
+
+在该类的onStart()方法里：
+
+	@Override
+	public void onStart(Intent intent, int startId) {
+		super.onStart(intent, startId);
+		if (Constants.LOG_SERVICE) {
+			Log.v(TAG, "onStart");
+		}
+		if (!mIsLoaded) {
+			LSWidgetManager.setLSWidgetService(this);
+			loadLSWidgetList();//这里加载了的ResoveInfo是两个，com.orange.lswidget.widgets.event.EventLSWidgetProvider and和					
+					//com.orange.lswidget.widgets.musicplayer.MusicLSWidgetProvider
+			sendInitialBroadcasts();
+		} else {
+			broadcastSystemReady();
+		}
+	}
+当这个类发送systemReady的广播后，LockSreenService里的广播接收器就会执行connectLSWidgetService()操作，流程如下：
+
+private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (mIsCleanUp) {
+				return;
+			}
+			String action = intent.getAction();
+			if (action.equals(ACTION_READY)) {
+				if (Constants.LOG_SERVER) {
+					Log.v(TAG, "Receive broadcast: LSWidget System is ready.");
+				}
+				Message msg = mHandler.obtainMessage(HANDLE_READY);
+				msg.sendToTarget();
+			}
+		}
+	};
+
+这个mHandler是一个UpdateHanlder 
+
+class UpdateHanlder extends Handler {
+		@Override
+		public void handleMessage(Message msg) {
+			switch (msg.what) {
+			case HANDLE_READY:
+				connectLSWidgetService();
+				break;
+			case HANDLE_ADD:
+				addLSWidgetView();
+				break;
+			case HANDLE_UPDATE:
+				updateLSWidgetView(msg.arg1);
+				break;
+			default:
+				break;
+			}
+		}
+	}
+在connectLSWidgetService()方法里，
+
+private ServiceConnection mServiceConnection = new ServiceConnection() {
+
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			mService = ILSWidgetService.Stub.asInterface(service);
+			if (null != mService) {
+				if (Constants.LOG_SERVER) {
+					Log.v(TAG, "ILSWidgetService connected.");
+				}
+				loadLSWidgetList();
+				startListeningLSWidgetService();
+			}
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			if (Constants.LOG_SERVER) {
+				Log.v(TAG, "ILSWidgetService disconnected.");
+			}
+			mService = null;
+		}
+	};
+这里因为是在两个不同的应用中，所以用到了aidl机制mService = ILSWidgetService.Stub.asInterface(service);
+loadLSWidgetList();里会添加LockscreenViewData到LockscreenViewList中去，然后发消息给UpdateHanlder，令其调用addLSWidgetView方法添加相应的view
+
+
+
+****************************************************************************************************************************************
+添加music layer的layout文件是在类MusicLSWidgetProvider里，
+@Override
+	public void onUpdate(Context context, int viewType) {
+		super.onUpdate(context, viewType);
+		if (Constants.LOG_SERVICE) {
+			Log.e(TAG, "onUpdate. ");
+		}
+		MusicLSWidgetService.startService(context);
+		RemoteViews remoteViews = new RemoteViews(
+				MusicLSWidgetProvider.MY_PACKAGE_NAME, R.layout.music);
+		LSWidgetManager.updateLSWidgetType(viewType, remoteViews, false);
+	}
+
+可以看到这里用到的是一个RemoteViews，那么这个RemoteViews和panel又有什么关系呢？
+
+中间找到了这个关系，就是如何播放上一曲，下一曲的，在WidgetSlat类里当点击上一首的按钮是，发出一个广播：
+Intent intent = new Intent();
+						intent.setAction(Constants.ACTION_MUSIC_PREV_TOUCH);
+						intent.putExtra(Constants.KEY_MUSIC_BTN_PREV, action);
+						getContext().sendBroadcast(intent);
+
+这个广播被com.orange.lswidget.widgets.musicplayer.service.MusicLSWidgetBroadcastReceiver给捕获到：
+else if (Constants.ACTION_MUSIC_PREV_TOUCH.equalsIgnoreCase(action)) {
+			int extra = intent.getIntExtra(Constants.KEY_MUSIC_BTN_PREV, -1);
+			if (extra == MotionEvent.ACTION_UP
+					|| extra == MotionEvent.ACTION_CANCEL) {
+				mHandler.removeCallbacks(mPrevRepeater);
+
+				if (mStartTime != 0) {
+					long now = SystemClock.elapsedRealtime();
+					scanBackward(-1, now - mStartTime);
+					mStartTime = 0;
+				}
+			}
+		}
+
+
+************************************从监测到有未接电话后，到更新widget的流程****************************************************************
+
+应该是在LocksreenViewi中就 显示好UI元素了，然后在有未接来电或未接短信的时候再去更新相应的view，更新的代码是类LockscreenView中的方法updateLSWidgetView(int viewType)，接下来分析一个整体的流程：从监测到有未接电话后，到更新widget的流程。
+监测数据库有两个地方，一个是在SummaryActivity里，另一个是在EventLSWidgetService里有monitor,该类里有一个EventLSWidgetManager类的引用
+EventLSWidgetService和EventLSWidgetManager的关系：
+EventLSWidgetManager定义了接口EventEventCallBackInterface：
+public interface EventCallBackInterface {
+		void onQueryComplete(boolean isHaveContent);
+	}
+EventLSWidgetService实现了该接口。
+
+
+public interface EventType {
+		public final int ALL_UPDATE = -1;
+		public final int CONTACT_UPDATE = 0;
+		public final int MISSCALL_UPDATE = 1;
+		public final int UNMSG_UPDATE = 2;
+		public final int VVM_UPDATE = 3;
+	}
+
+原来更新event的views是在EventLSWidgetManager的相关方法getViewFromInfo()里组装好，再一层层的传递给上层的。至此，当事件发生改变时候的流程已经很清楚了。
+
+
+
+***********************************************************音乐播放的流程****************************************************************
+这个也不难，无非就是调用一些定义好的api,控制音乐播放就可以了。关键觉得音乐播放的view效果比较炫，看一下这个效果是怎么实现的的。
+当现实音乐控制面板的时候，
+SliderSlatPanel这个类里，手指放在上面，会跟着移动的可能是 mMovingSlat(SliderSlat)
+
+
+
+
+
+
+***********************************************************导入eclipse出错****************************************************************
+今天换了台机器后，再把五个项目导入到eclipse的时候，总是报项目有错，但是却没有出错的文件，挺奇怪的。之前的那个机器也出现了这样的问题，但是当时好像
+是找不到R.java,解决方案就是按照该文档上最开头写的就可以，但是换了台电脑以后，怎么都不行了。看来还是不能一知半解，还要彻底搞懂才行。
+
+真是奇怪了，刚在家试了一遍，很轻松的就好使了。最多就是改了一下override这个错误，只需要修改一下java complie 级别都为1.6就行了，重新添加一下LS.jar
+。源代码一丁点也没做修改！那公司那电脑问题会是出在哪里呢？
+
+之前自己一直以为这种架构有问题，不规范，后来在这里看到api介绍
+http://developer.android.com/guide/developing/projects/projects-cmdline.html
+
+也就是api中"Dev Guide"标签页的Developing->Managering Project->From the Command Line下介绍，原来android标准是支持新建三种类型的android project
+normal,library,test。
+
+那么公司的问题出在哪里了呢？
+1：出在代码上，这个不太可能，因为刚从服务器上下的代码
+2：eclipse配置的android-sdk上，也不可能，家里和公司用的一样，都是移动硬盘->locksreen资料里的。
+3：eclipse本身的问题，这个有可能，家里和公司用的eclipse不一样。家里的是GANYMEDE
+4：build path的问题？
+
+刚自己又不知道怎么搞出了点错，最后解决的办法还是complie的问题，
+Windows->Preference->Configure Project Speific Settings,选中一个项目，然后在弹出的对话框上确定将"Enable project specifie settings"单选框给选中！
+再clean编译就可以了。
+
+
+双击android.bat的时候发现：
+
+Starting Android SDK and AVD Manager
+Error: Ignoring platform 'android-2.3': tools\aapt.exe is missing
+No command line parameters provided, launching UI.
+See 'android --help' for operations from the command line.
+Error: Ignoring platform 'android-2.3': tools\aapt.exe is missing
+
+发现android-2.3下没有tools目录了？拷贝一个android-2.2的tools目录过来
+
+
+
+又出现问题概述：
+
+在导入一个app后提示如下错误：
+
+“Error generating final archive: Debug Certificate expired on 10/09/18 16:30”
+
+ 
+
+原因分析：
+
+android要求所有的程序必须有签名，否则就不会安装该程序。在我们开发过程中，adt使用debug keystore，在 preference->android->buid中设置。debug的keystore默认有效期为一年，如果你是从一年前开始完android程序，那么在一年后导入这个app的时候很可能出现debug keystore过期，导致你无法生成 apk文件。
+
+此时你只要删除debug keystore就行，系统又会为你生成有效期为一年的私钥。 
+
+ 
+
+解决方法：
+
+进入C:\Documents and Settings\Administrator\.android 删除路径下的debug.keystore及 ddms.cfg。
+
+（不同环境下的目录可能略有不同，可在eclipse中查找此路径：Window->Preferences->Android->Build下 Default debug keystore）
+
+然后重新导入即可。
+
+
+**********************************************************android项目上有小红叉****************************************************************
+好了，至此可能之前那个特别奇怪的项目文件上总有一个小红叉（源文件没有错误）的原因可能就是因为android-sdk
+的android-2.3目录下没有tools/目录造成的。
+***********************************************************android项目上有小红叉****************************************************************
+
+然后换了机器后，svn也报错：
+RA layer request failed，搜索发现原因：
+
+org.tigris.subversion.javahl.ClientException: RA layer request failed
+svn: Server sent unexpected return value (403 Forbidden) in response to OPTIONS request for 'https://source.nexaweb.com/protected'
+
+org.tigris.subversion.javahl.ClientException: RA layer request failed
+svn: Server sent unexpected return value (403 Forbidden) in response to OPTIONS request for 'https://source.nexaweb.com/protected'
+
+
+Can not map the project with svn provider
+
+解决方法：
+
+删除C:\Documents and Settings\用户名\Application Data\Subversion\auth下的文件，删除svn登录信息
+
+
+超级无语，竟然是将服务器地址写错了！！！！！！！！！！！！！！！！
+
+svn算是配好了，可是下了最新的代码后，import项目进来以后，还是出错，但这次不是报那个无迹可寻的小红叉了，lenovo_screen,lenovo_settings,Summray_library是好使了，
+但是summary和lenovo_service还是不好使，叫其他的同事来看了，也还是不好使。太无语了，后来发现一个细节，就是我用的自己刚从网上下的最新的eclipse，在项目上点击右键
+properties->Android的时候，下边没有Library的选项卡，而那个同事那是有的。于是就回来，重新用有Library的选项，没想到竟然可以了。不容易啊，总算在周五之前，把环境
+配置搞定了。总结一下，可能有两个原因来回转的。
+1：android-sdk里platforms/android-2.3里没有tools/这个目录
+2:eclipse版本的问题。
+
+
+
+***********************************************************bug解决****************************************************************
+提前加加班。
+
+2552：
+这个bug是和横竖屏切换相关的问题，因为之ChooserActivity这个类的设计是透明的，在onCreate()方法里就会创建一个dialog,这样在每次横竖屏切换的时候
+都会产生一个dialog,这个就会有问题，虽然在onDestroy方法里加上了一些dialog.dismiss(),this.removeDialog()的代码，但是还是会出现很多莫名其妙的错误，最后
+在网上搜索了一下，发现两个解决办法：
+1：如果禁止横竖屏切换的话，这个办法可以，但太刚性
+2：在AndroidManifest.xml里的ChooseActivity配置信息里加上android:configChanges="orientation|keyboardHidden|navigation"，这样的话，不但仍然可以
+横竖屏切换，而且在横竖屏切换的时候不会多次调用onCreate()方法，也就不会产生dialog的问题。
+
+2439：
+同样的问题，只需要将PickWallPaper声明改成如下方式即可：
+<activity android:name=".wallpaper.PickWallpaper"
+			android:configChanges="orientation|keyboardHidden|navigation"
+			android:theme="@style/Theme.Transparent">
+			<intent-filter>
+				<action android:name="com.orange.lockscreen.action.SET_WALLPAPER" />
+				<category android:name="android.intent.category.DEFAULT" />
+			</intent-filter>
+		</activity>
+
+余下的bug比较难解了，对view还理解的不够。
+
+对于自定义的view，只需要在onLayout()中指定各个子元素的位置，即可。如果onLayout()代码为空，则不会显示子元素。又试验了一下，发现最关键的不是说非得要有onLayout()
+这个函数，而是只要子元素调用了layout函数就可以，比如：bBtn.layout(0, 50, 54, 98); 
+
+重新回到那个滑动音乐控制面板的特效上。
+现在知道手势滑动的时候，触发的是SliderSlatPanel的onTouchEvent方法，然后调用：
+case MotionEvent.ACTION_MOVE:
+				int xOffset = x - mXDownPos;
+				mMovingSlat.move(xOffset);
+				Log.d(TAG,"########################## onTouchEvent x: " + x + ",mXDownPos: " + mXDownPos + ",xOffset: " + xOffset);
+				break;
+
+在SliderSlat的move方法里，如果把第一层完全拉到右边的话，触发的是mSliderMotionListener.onSliderOpened(mRowIndex);
+点中的时候好像是Log.d(TAG,"################## SliderSlat move() onSliderHitBroad");
+当第一层把第二层覆盖的时候，是mSliderMotionListener.onSliderClosed(mRowIndex);
+
+但是有一点还是不太明白，就是通过看log,发现在移动的时候，
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+V/SliderSlat(  164): onLayout. rowIndex=2 changed=true
+
+就是SliderSlat的onLayout函数在一直被调用，这是因为什么它被调用的呢？发现了，可能是这个mSliderMotionListener.onSliderMoving(mRowIndex, lp.xOffset);
+
+
+
+发现一个问题，就是有关音乐控制面板的UI元素，都是在Locksreen_service这个项目里的，音乐控制面板的layout文件是layout_view_music_player.xml
+
+
+2357：
+一个非常奇怪的现象，在locksreen setttings里修改了Show music controls这个ListPreference后，没有发现保存该值的操作。
+
+*******************************************************accer Locksreen apk保存的位置****************************************************************
+发现在accer上，安装不了新生成的apks,卸载也卸载不下来，应该先需要rm *.apk，然后adb uninstall packagenames 才可以，但是这些apks在accer手机上的目录:
+/data/FLEX/app
+Locksreen.apk
+Locksreen_service.apk
+Locksree_settings.apk
+Orange_NotificationSummary.apk（竟然将NotificatinoSummary.apk改名了）
+
+那么在nexus one上，这些apk存放的目录是在哪里呢？暂时还没找到。但是直接adb uninstall ,adb install就可以了。
+
+发现点亮屏幕的时候，nexus 和 accer接受到得广播竟然是不一样的，
+nexus:onReceive.  onReceive. ACTION: android.intent.action.SCREEN_ON(不知道什么时候还会是ACTION: com.lockscreen.enter)
+acces:onReceive. ACTION: com.android.music.queuechanged
+
+
+并且两者针对不同的action也是不同的操作;
+accer:
+else if (sMp.isMusicActions(action)) {
+				boolean playing = MusicPlayerClient.getMusicPlayerStatus();
+				boolean fromUser = MusicPreferences
+						.isMusicTrackChangeByUser(mContext);
+
+				if (Constants.LOG_SERVICE) {
+					Log.e(TAG, "onReceive. fromUser: " + fromUser
+							+ " playing: " + playing);
+				}
+
+				// if user operation
+				if (fromUser || (!fromUser && playing)) {
+					int status = MusicPreferences.getLockScreenStatus(mContext);
+					autoHide = autoHideSlatByMusicAction(mContext, status,
+							playing);
+
+					if (mH != null) {
+						Message msg = mH
+								.obtainMessage(DELAY_TO_CHANGE_MUSIC_STATE);
+						HObject obj = new HObject();
+						obj.autoHide = autoHide;
+						msg.obj = obj;
+						mH.sendMessageDelayed(msg, 1200);
+					}
+				} else { // if from system && stop.pause(e.g mobile phone start)
+					// autoHide = true;
+					return;
+				}
+			} 
+
+nexus:
+else if (Intent.ACTION_SCREEN_ON.equals(action)) {
+				autoHide = autoHideSlatByMusicSetting(mContext);
+			} 
+
+统计一下关于音乐的几个broadcast
+com.android.music.playstatechanged:暂停或播放的时候
+com.android.music.metachanged:上一曲，下一曲的时候
+com.android.music.queuechanged：播放列表更换的时候
+
+MusicPlayerClient里有类GeMusicPlayerService，该类的子类AndroidMPService,SamSungAndroidMPService中有一个aidl
+接口的引用，可以用来控制音乐上一首，下一首，上一曲，下一曲等。
+
+发现在accer机子中，会一直接收到onReceive. ACTION: com.android.music.queuechanged 1206 这个广播，这个广播是怎么产生的，是accer机器本身的问题，还是因为locksreen
+项目造成的？
+
+看log,发现：
+E/MusicLSWidgetService( 4004): getRemoteViewsBySetting. views: android.widget.RemoteVie
+V/MusicLSWidgetService( 4004): ^^^^^^ mHasContent: true ^^^^^^^
+V/LSWidgetService( 4004): updateLSWidgetProvider
+V/LSWidgetService( 4004): Got RemoteViews by ComponentName=[ComponentInfo{com.orange.ls
+vider}]
+E/MusicLSWidgetService( 4004): onReceive. ACTION: com.android.music.queuechanged19
+
+
+每次都是在LSWidgetService 调用完方法updateLSWidgetByProvider 后，有进入到MusicLSWidgetService的receiver里去的。
+点击锁屏音乐控制面板上的播放，暂停按钮后，发出com.orange.music.play_stop的广播。
+在MusicLSWidgetService中处理代码：
+
+lse if ("com.orange.music.play_stop".equals(action)) {
+				if(mMusicPlayerClient.getAndroidMPService().isPlaying()){
+					mMusicPlayerClient.getAndroidMPService().pause();
+				}else{
+					mMusicPlayerClient.getAndroidMPService().play();
+				}
+
+
+			}
+
+RemoteViews中的方法使用好像键值对一样，键就是UI元素的id,值就是图片，或者要出发的intent等。
+
+
+
+*********************************************************************************************************************
+【AppWidget开发】
+1：新建一个类继承自AppWidgetProvider（该类继承自BroadcastReceiver）,在xml中声明可以捕捉到系统添加widget的配置信息
+<receiver android:name=".MyNotes">  
+            <intent-filter>  
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />  
+            </intent-filter>  
+            <meta-data android:name="android.appwidget.provider"  
+                android:resource="@xml/my_note_widget" />  
+</receiver>  
+
+2：新建一个my_note_widget.xml，声明该widget的相关配置信息
+
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"  
+    android:minWidth="72dp" android:minHeight="72dp"  
+    android:updatePeriodMillis="86400000" android:initialLayout="@layout/my_note_widget"  
+    android:configure="com.orange.ryan.widget.MyNoteConf">  
+</appwidget-provider> 
+
+这样，就可以添加该widget到桌面了，一个AppWidgetProvider类可以在桌面上添加多个widget实例，但每个widget实例的id不同。在更新具体
+某个widget的时候，是通过RemoteView，
+
+AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(MyNoteConf.this);  
+appWidgetManager.updateAppWidget(mAppWidgetId, views);
+
+因为RemoteView在实例化的时候，包含包名（进程）的详细信息，RemoteViews views = new RemoteViews(MyNoteConf.this  
+                    .getPackageName(), R.layout.my_note_widget);
+
+所以appWidgetManager应该可以更新到具体的某个应用的某个widget上。
+
+
+******************************************************加载LSWidget***************************************************************
+
+在LSWidgetSevice类的loadLSWidgetList()方法里:
+
+Intent intent = new Intent(LSWidgetManager.ACTION_LSWIDGET_UPDATE);//com.orange.lswdiget.action.LSWIDGET_UPDATE
+		List<ResolveInfo> broadcastReceivers = pm.queryBroadcastReceivers(
+				intent, PackageManager.GET_META_DATA);
+
+
+经过搜索com.orange.lswdiget.action.LSWIDGET_UPDATE，发现符合该action的receiver有：
+
+
+		<receiver android:name=".widgets.event.EventLSWidgetProvider"
+			android:label="Event" android:icon="@drawable/event_icon">
+			<intent-filter>
+				<action android:name="com.orange.lswdiget.action.LSWIDGET_UPDATE" />
+			</intent-filter>
+			<meta-data android:name="android.lswidget.provider"
+				android:resource="@xml/event_lswidget_provider" />
+		</receiver>
+
+
+
+		<receiver android:name=".widgets.musicplayer.MusicLSWidgetProvider"
+			android:label="Music" android:icon="@drawable/music_player_catalogue_item_icon">
+			<intent-filter>
+				<action android:name="com.orange.lswdiget.action.LSWIDGET_UPDATE" />
+			</intent-filter>
+			<meta-data android:name="android.lswidget.provider"
+				android:resource="@xml/music_lswidget_provider" />
+		</receiver>
+
+这里就定义了这两个widget的视图显示等配置信息。
+
+然后调用方法：addProviderLocked()
+
+event_lswidget_provider.xml内容:
+
+<?xml version="1.0" encoding="utf-8"?> 
+<lswidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/event"
+    >
+
+
+music_lswidget_provider.xml内容:
+
+<?xml version="1.0" encoding="utf-8"?>
+<lswidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/layout_view_music_player_empty"
+    >
+</lswidget-provider>
+
+LockscreenService里的方法addLSWidgetView()，mLockscreenView.addWidgetView(hostView);这个hostView是LockscreenViewData的一个属性，
+
+class LockscreenViewData {
+	int type;
+	RemoteViews data;
+	LSWidgetHostView host;
+	AppWidgetProviderInfo info;
+	boolean hasContent;
+}
+
+
+SlatHashMap：
+HashMap<Integer, SlatInfo> sSlatInfos：key是0,1,2,3，表示在屏幕当中从上而下的index,值是SlatInfo(有mSlatType和mHeight属性)
+
+HashMap<Integer, WidgetViewInfo> sWidgetViewInfos：key是0,1,2,3，表示在屏幕当中从上而下的index,值是WidgetViewInfo> 
+(有mViewType属性)
+
+
+************************************************************** 视图分析**************************************************************
+android中有个命令hierarchyviewer，该命令可以看到view的视图，经过分析，发现果然四个条目都是一个WidgetSlat,都是存放在WidgetSlatPanel
+里的，至于TipSlatPanel,TapPanel，SwipPanel,SliderPanel等都是手指点击才会触发显示的。
+
+
+WidgetSlatPanel显示子UI元素的时候，是通过调用layoutWidgetSlat()方法，
+
+public void layoutWidgetSlat(int rowIndex, int xOffset) {
+		if (null != mWidgetSlats) {
+			WidgetSlat slat = mWidgetSlats.get(rowIndex);
+			if (null != slat) {
+				if (xOffset >= 0) {
+					mMusicXOffset = xOffset;
+				} else {
+					mMusicXOffset = getWidth();
+				}
+				slat.requestLayout();
+			}
+		}
+	}
+
+slat.requestLayout()这句代码是要求slat重新定义自己在WidgetSlatPanel中的位置呢？还是slat定义它的子元素的位置呢？
+
+单次点击的时候，提示Double-tap to unlock信息，跟踪了一下流程图，发现不管点四个条目当中的哪一个，都是触发了SliderSlatPanel中的onTouchEvent方法。奇怪了，
+难道SliderSlatPanel和WidgetSlatPanel都是全屏的吗?
+打印了一个log，发现确实如此：
+mWidgetLayer.heigth: 455,mWidgetLayer.width: 320  
+mSliderLayer.heigth: 455,mSliderLayer.width: 320
+mSwipeLayer.heigth: 455,mSwipeLayer.width: 320
+mTaplayer.heigth: 455,mTaplayer.width: 320
+mTipLayer.heigth: 455,mTipLayer.width: 320
+
+原来是在这里定义的：基类SlatPanel里：
+
+public void init(Handler handler) {
+		mHandler = handler;
+		LayoutParams params = new LayoutParams(LayoutParams.FILL_PARENT,
+				LayoutParams.FILL_PARENT);
+		setLayoutParams(params);
+		init();
+	}
+
+而这些slatPanel的直接父类是LocksreenView里的mRootLayout，
+
+mRootLayout = new RelativeLayout(context);
+		LayoutParams params = new LayoutParams(LayoutParams.FILL_PARENT,
+				LayoutParams.FILL_PARENT);
+
+这里必须明确指定各slatPanel的长度和宽度，因为默认的不是(LayoutParams.FILL_PARENT
+
+
+
+D/MusicLSWidgetService( 7368): ############################### not updateMusicSlatStatus
+E/MusicLSWidgetService( 7368): onReceive. ACTION: com.android.music.queuechanged11635
+E/MusicLSWidgetService( 7368): onReceive. fromUser: true playing: false
+E/MusicLSWidgetService( 7368): onReceive. fromUser || (!fromUser && playing):
+E/MusicLSWidgetService( 7368): onStart. music playing: false
+V/MusicPlayerClient( 7368): updateMusicPlayerStatus. [mMPService=com.orange.lswidget.widgets.musicplayer.service.AndroidMPService@4053f808, autoHide=t
+rue
+V/MusicPlayerClient( 7368): updateMusicPlayerStatus. [mMPService=com.orange.lswidget.widgets.musicplayer.service.AndroidMPService@4053f808, autoHide=t
+rue
+V/MediaPlayer( 2715): getCurrentPosition
+V/MediaPlayerService(   80): getCurrentPosition
+V/StagefrightPlayer(   80): getCurrentPosition
+V/MediaPlayerService(   80): [24] getCurrentPosition = 0
+V/MediaPlayer( 2715): getDuration
+V/MediaPlayer( 2715): getCurrentPosition
+V/MediaPlayerService(   80): getCurrentPosition
+V/StagefrightPlayer(   80): getCurrentPosition
+V/MediaPlayerService(   80): [24] getCurrentPosition = 0
+V/MusicPlayerClient( 7368): ===track: null===album: 鐜嬪姏瀹?===albumId: 2===artist: null===audioId: 0
+V/MusicPlayerClient( 7368): mStatus:PAUSE, playing:false, oldStatus:PAUSE
+D/MusicLSWidgetService( 7368): performUpdate. [status=PAUSE, autoHide=true
+E/MusicLSWidgetService( 7368): showPanel. status: PAUSE autoHide: true
+E/MusicLSWidgetService( 7368): getAppWidgetWithNoEvents.
+V/MusicLSWidgetService( 7368): ^^^^^^ updateWidgets() mHasContent: false ^^^^^^^
+V/LSWidgetService( 7368): updateLSWidgetByProvider , mInstalledProviders.size(): 2
+V/LSWidgetService( 7368): Got RemoteViews by ComponentName=[ComponentInfo{com.orange.lswidget/com.orange.lswidget.widgets.musicplayer.MusicLSWidgetPro
+vider}]
+
+
+将packages/apps/Music代码导入看了一下，发现引起com.android.music.queuechanged的原因很多，更改播放列表。在locksreen里找一下更改列表的操作，
+
+最后，经过自己写的一个测试程序，发现之所以死循环，问题的原因是在调用下面两个方法的时候，会导致发出 com.android.music.queuechanged广播，从而导致locksreen
+程序接收广播，调用这些方法，然后又发出广播。
+
+String artisName = mMps.getArtistName();
+long audio_id = mMps.getAudioId();
+
+之前的程序一直调用这个方法，其实没有必要，只要保证这些方法只调用一次就可以了。
+第100行改成：
+
+if(null == info){
+				info = getTrackInfo();
+			}
+
+就可以了。
+
+并且学会了aidl的使用，比如在测试程序TestMusicBroad里，想用到播放音乐的service,就需要把在项目下新建一个包com.android.music，在该包下粘贴一个
+IMediaPlaybackService.aidl文件，然后再程序里：
+
+	public ComponentName getMsmusicplaybackservice() {
+		return new ComponentName("com.android.music",
+				"com.android.music.MediaPlaybackService");
+	}
+	
+	private void connectService(Context context) {
+		mMediaPlaybackService = getMsmusicplaybackservice();
+		Intent service = new Intent();
+		service.setComponent(mMediaPlaybackService);
+		context.bindService(service, mConnection, Context.BIND_AUTO_CREATE);
+	}
+	
+	private com.android.music.IMediaPlaybackService mMps;
+	
+	private ServiceConnection mConnection = new ServiceConnection() {
+		
+		public void onServiceConnected(ComponentName name, IBinder service) {
+				mMps = IMediaPlaybackService.Stub.asInterface(service);
+				Log.d(TAG,"********************** onServiceConnected ");
+				doSomeAct();
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			
+		}
+	};
+
+acer分辨率:
+320*480 ,对应自drawable-mdpi
+nexus one:
+320*533 
+
+
+问题：
+1：acer播放的时候歌手名，歌曲名不显示
+2：修改完死循环后，上一首，下一首的时候，nexus one上歌名不变
+
+
+
+
+
+ ###################### in layoutChild ,childLeft is: 0
+  lp.xOffset: 0 lp.canTouchableRect : Rect(0, 226 - 320, 339)
+  child position: (0,226,640,339
+ ###################### in layoutChild ,childLeft is: 0
+  lp.xOffset: 0 lp.canTouchableRect : Rect(0, 226 - 320, 339)
+
+
+###################### in layoutChild ,childLeft is: -320
+ lp.xOffset: 0 lp.canTouchableRect : Rect(0, 226 - 320, 339)
+ child position: (-320,226,640,339
+###################### in layoutChild ,childLeft is: -320
+ lp.xOffset: 0 lp.canTouchableRect : Rect(0, 226 - 320, 339)
+
+
+
+D/SliderSlatPanel(  167):  lp.xOffset: 191 lp.canTouchableRect : Rect(191, 226 - 511, 339)
+D/SliderSlatPanel(  167):  child position: (-129,226,831,339
+
+
+D/SliderSlatPanel(  167):  lp.xOffset: 225 lp.canTouchableRect : Rect(225, 226 - 545, 339)
+D/SliderSlatPanel(  167):  child position: (-95,226,865,339
+
+
+
+***********************************************************andriod 适配****************************************************
+
+分辨率：代表垂直及水平显示的每英寸点（dpi）的数量
+VGA:的英文全称是Video Graphic Array，即显示绘图阵列.
+FWVGA:	480*854
+WVGA:	480*800		drawable-hdpi
+
+HVGA:	320*480		drawable-mdpi
+
+QVGA:	240*320		drawable-ldpi
+
+DPI:Dots Per Inch 每英寸所打印的点数或线数
+
+
+随着Android机型的不断增多，从默认HVGA 320x480 到 WVGA  480x800 、FWVGA 480x854 以及QVGA的240x320，如果要保证这些机型的正常显示，
+可能涉及到图片资源单独设计，虽然有朋友考虑使用9patch方法可以解决拉伸，但是我们要考虑如果一个主程序的背景图片，
+可能原来为480x800的Nexus One上正常运行，但是到了HTC Tattoo的240x320，可以想想是什么样子。Android开发网提示大家对于Android 2.0而言资源要单独考虑，
+不然无法正常被加载。如下图很多都加了v6的字样.
+
+我们将对上面的文件夹命名方式做详细的解释: drawable-hdpi 这个hdpi代表high dpi，一般为 WVGA或 FWVGA分辨率的图片，如480x800，而mdpi 代表 mid dpi，
+一般为HVGA，如320x480。而 ldpi为 low dpi，一般为QVGA，如240x320。而下面layout中的land代表横屏时的布局。但是有些网友可能发现了 -v6的字样android123提示
+这是 Android 2.0开始出现一些bug的解决方法。 -v6是专门为2.0固件的机型设计的。 v6代表 API Level 6 
+
+Density independent pixel (dip）
+
+a UI element (such as a button) whose height and width are defined in terms of screen pixels will appear
+ larger on the lower density screen and smaller on the higher density screen. 
+
+htc G1:
+D/TestMain(28643): metrics:heightPixels : 480,widthPixels : 320,density : 1.0,densityDpi: 160,scaledDensity: 1.0
+
+acer:
+D/TestMain( 7932): metrics:heightPixels : 480,widthPixels : 320,density : 1.0,densityDpi: 160,scaledDensity: 1.0
+
+
+一个像素的尺寸是可变的,和精度(分辨率)有关,如果精度是72dip的话,就是说每英寸里有72个像素,每像素就是1/72英寸.如果精度是300dpi的话,那每像素就是1/300英寸了!
+
+
+htc g1和acer机子的物理高度和宽度明显是不一样的，但是怎么会都是480 * 320 呢?
+
+因为之前取值的代码是：dm.widthPixels和dm.heightPixels
+其中dm.widthPixels和dm.heightPixels得到的宽度和高度值都是以宽度为320为标准的，也就是说，不管你的屏幕是什么分辨率，宽度都会得到320,(android这么设计，可能
+是为了诸如在进行onTouchEvent时候 进行处理方便)
+而高度就根据比例宽高比例计算，所以在我的Milestone上(480X854)得到的宽高为320X569，如果要得到真实的分辨率，就必须乘以dm.density,这个值是因硬件分辨率而异的，
+如果是屏幕硬件宽为320像素，那么这个值就是1,如果是480,这个值就是480/320,就是1.5。
+
+按照这样的代码：
+int widthPixels = dm.widthPixels;
+          int heightPixels = dm.heightPixels;
+          float act_width=dm.widthPixels*dm.density;   
+          float act_height=dm.heightPixels*dm.density;
+          
+          Log.d("TestMain",",dm.density: " 
+           		 + dm.density + ",dm.densitydpi: " + dm.densityDpi + 
+           		 "\n heightPixels: " +  heightPixels + ",widthPixels: " + widthPixels + 
+           		 "\n act_height : " + act_height + ",act_width : " + act_width  );
+
+
+1:nexus one:
+
+D/TestMain( 4102): ,dm.density: 1.5,dm.densitydpi: 240
+D/TestMain( 4102):  heightPixels: 533,widthPixels: 320
+D/TestMain( 4102):  act_height : 799.5,act_width : 480.0
+
+2:acer
+
+D/TestMain( 1529): ,dm.density: 1.0,dm.densitydpi: 160
+D/TestMain( 1529):  heightPixels: 480,widthPixels: 320
+D/TestMain( 1529):  act_height : 480.0,act_width : 320.0
+
+3:htc g1:
+
+D/TestMain(29014): ,dm.density: 1.0,dm.densitydpi: 160
+D/TestMain(29014):  heightPixels: 480,widthPixels: 320
+D/TestMain(29014):  act_height : 480.0,act_width : 320.0
+
+但是这个得出来的尺寸也明显是错的，acer和htc g1的物理尺寸大小是不一样的。
+
+
+在xml资源文件里，定义宽度和高度的时候，应该用dip单位，而不是px,因为px太过刚性，对于不同分辨率的手机，假设同一英寸A机器有10个像素，而B机器有20个像素
+(假设机器A的density是1，那么机器B的density一定是2,当然在android里有一个参照标准，就是density=160)，那么如果在资源文件里指定了20个像素，
+那么在A机器上UI元素宽度就是2英寸，B机器则是一英寸。但是如果单位是20dip的话，实际长度就是20 * densitydpi,所以实际长度(A机器是20*1=20个像素，
+B机器是20*2=40个像素，正好都是2英寸)两个机器上都是一样的。
+
+
+
+如果把这里的代码注释掉：
+	@Override
+	public void onSliderMoving(int rowIndex, int xOffset) {
+//		sendMessage(MSG_SLIDER_MOVING, rowIndex, xOffset);
+		layoutChild(mSliderSlat, rowIndex);
+//		if (mWidgetSlatPanel != null) {
+//			mWidgetSlatPanel.layoutWidgetSlat(rowIndex, xOffset);
+//		}
+		Log.d(TAG,"$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ comment layoutWidgetSlat");
+	}
+
+发现，只是将音乐模板的上一层拉到了右边，下面那层什么也没有，看来下层 应该是在WidgetSlatPanel中负责显示的。
+在WidgetSlat的onLayout方法里：
+hostView.layout(left, top, right, bottom);
+			if(2 == mRowIndex){
+				Log.v(TAG, "2 == mRowIndex,[hostView]: left:" + left + ",top: " + top
+						+ ",right: " + right + ",bottom: " + bottom);
+			}
+
+可以看到right是逐渐增大的，符合音乐控制面板下面那层显示越来越多的情况。
+
+在控制面板没有向右滑开的时候，发现第二行的WidgetSlat和SliderSlat的UI显示是完全一样的，都是一个右箭头加上一个圆形唱片图片。
+当向右滑开以后，发现SliderSlat只剩下一个向右的箭头了（并且移到了最右侧），而WidgetSlat则现在是上一首，下一首，暂停按钮的图片了。
+
+原来是在LocksreenView里：
+
+private void initBackgroundWallpaper() {
+		Bitmap temp = BitmapFactory.decodeResource(getResources(),
+				s_BACKGROUNDS[0]);
+		
+		mSliderBitmap = LockScreenUtils.spliteSlideBitmap(temp,
+				MySlatHashMap.MUSIC_WIDGET_ROWINDEX);
+	}
+
+这里就已经根据桌面背景图片，切割好了slider所需要的背景图片（就是说在SliderSlat上，不光背景图片是一样的，并且上边还有右箭头的图片？）
+
+
+
+*******************************************************************死循环最后的解决方案*******************************************************
+经过从acer拿到他们的音乐播放的aidl文件后，发现之前调用getArtistName()方法，不会再发queuechanged广播了，所以之前的程序也就不用修改了，需要注意的
+是以后再发包的时候，需要根据是acer,还是google,来替换掉相应的aidl文件，服务器上现在的aidl是acer的。
+
+
+*******************************************************************Evnet panel*******************************************************
+event panel用到的布局文件在类EventLSWidgetManager中指定：
+
+mRemoteViews = new RemoteViews(EventLSWidgetUtils.packageName,
+				R.layout.event);
+
+
+
+getViewFromInfo()在这个方法里，对RemoteView的元素进行了数据化处理。
+
+
+Event panel图片显示：
+1：彩信里有图片，就显示第一张下载下来的图片
+2：mms里没有图片，则显示本地联系人头像图片
+
+
+看以下double 点击的时候
+
+
+*****************************************************************AppWidgetProvider*****************************************************************
+继续深入研究一下widgetProvider,
+lockscreen实现了自己的provider,但是无论是android自带的，还是lockscreen自己实现的，无非都是继承自BroadcastReceiver.
+不同的widgetProvider在声明的时候，其实就是一个receiver:
+
+android自带的AppWidgetProvider
+
+ <receiver android:name=".MyNotes">  
+            <intent-filter>  
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />  
+            </intent-filter>  
+            <meta-data android:name="android.appwidget.provider"  
+                android:resource="@xml/my_note_widget" />  
+        </receiver> 
+
+
+
+Lockscreen 自定义的LSWidgetProvider:
+
+<receiver android:name=".widgets.event.EventLSWidgetProvider"
+			android:label="Event" android:icon="@drawable/event_icon">
+			<intent-filter>
+				<action android:name="com.orange.lswdiget.action.LSWIDGET_UPDATE" />
+			</intent-filter>
+			<meta-data android:name="android.lswidget.provider"
+				android:resource="@xml/event_lswidget_provider" />
+		</receiver>
+
+		<service android:name=".widgets.event.EventLSWidgetService"
+			android:exported="true" />
+
+		<receiver android:name=".widgets.musicplayer.MusicLSWidgetProvider"
+			android:label="Music" android:icon="@drawable/music_player_catalogue_item_icon">
+			<intent-filter>
+				<action android:name="com.orange.lswdiget.action.LSWIDGET_UPDATE" />
+			</intent-filter>
+			<meta-data android:name="android.lswidget.provider"
+				android:resource="@xml/music_lswidget_provider" />
+		</receiver>
+
+
+只是加上了特定的action,并且不同的widgetProvider可以指定不同的配置文件，由标签”android:resource=“来指定
+如第一个provider,android:resource="@xml/my_note_widget"
+xml/my_note_widget.xml文件如下：
+
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"  
+    android:minWidth="72dp" android:minHeight="72dp"  
+    android:updatePeriodMillis="86400000" android:initialLayout="@layout/my_note_widget"  
+    android:configure="com.orange.ryan.widget.MyNoteConf">  
+</appwidget-provider> 
+
+指定了该widgetProvider的ＵＩ显示android:initialLayout="@layout/my_note_widget"
+
+
+xml/event_lswidget_provider.xml文件内容:
+
+<?xml version="1.0" encoding="utf-8"?> 
+<lswidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/event"
+    >
+</lswidget-provider>
+
+xml/event_lswidget_provider.xml文件内容:
+
+<?xml version="1.0" encoding="utf-8"?>
+<lswidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/layout_view_music_player_empty"
+    >
+</lswidget-provider>
+
+这里lswidget-provider比较特殊，后发现在andriod xml文件里标签可以随便写，只需有xml解析器解析就可以了，lockscreen这里的解析器是在
+LSWidgetSevice里解析的：
+
+if (!"lswidget-provider".equals(nodeName)) {
+				Log.v(TAG,
+						"Meta-data does not start with appwidget-provider tag for"
+								+ " AppWidget provider '" + component + '\'');
+				return null;
+}
+
+
+
+**********************************************************android锁屏机制分析**************************************************
+
+private final String ACT_SCREEN_OFF = "android.intent.action.SCREEN_OFF";
+private final String ACT_SCREEN_ON = "android.intent.action.SCREEN_ON";
+
+这两个action 能够监听到屏幕亮和暗的状态，
+
+发现桌面应用是
+packages/apps/Launcher2,主界面就是com.android.launcher2.Launcher，那么锁屏的这个Activity是谁呢？只有LockscreenView,这个LockscreenView
+是附在哪个Activity上呢?
+
+测试monkey的时候应该是 adb shell monkey -p com.android.launcher -v 10000 > crash.txt
+
+adb shell monkey -p com.test.monkey -v 10000 > crash.txt
+
+zte上monkey出现的错误，可能是因为以下代码产生的原因：
+
+View createLockScreen() {
+       View view = ExtLockScreenLoader.getLockScreen(mContext,
+				mKeyguardScreenCallback, mUpdateMonitor, mConfiguration);
+		if (view != null) {
+			// Display Orange Lockscreen first if it is available.
+			mMode = Mode.LockScreen;
+			mIsOrangeLockscreenEnable = true;
+		}
+		return view == null ? new LockScreen(mContext, mConfiguration,
+				mLockPatternUtils, mUpdateMonitor, mKeyguardScreenCallback)
+				: view;
+}
+
+如果自定义view为空的话，就会调用系统默认的view.
+
+在ExtLockScreenLoader.getLockScreen(mContext,
+				mKeyguardScreenCallback, mUpdateMonitor, mConfiguration);中用的是反射机制，就是如果
+找到反射类的话就可以创建自定义view,否则就不能。
+
+
+
+View不一定要添加到Activity上才能显示，也可以直接通过WindowManager来做，以下摘自网上
+
+********************************************************************************************************************************************
+我们Android平台是一个又一个的Activity组成的，每一个Activity有一个或者多个View构成。所以说，当我们想显示一个界面的时候，
+我们首先想到的是建立一个Activity，然后所有的操作在Activity里面实现，或者是一个Dialog或者Toast。这种方式固然简单，
+但是在有些情况下，我们要求的只是简单的显示，用Activity显然是多余，这个时候，我们如何处理呢？ 
+
+ 
+
+原来，整个Android的窗口机制是基于一个叫做 WindowManager，这个接口可以添加view到屏幕，也可以从屏幕删除view。
+它面向的对象一端是屏幕，另一端就是View，直接忽略我们以前的Activity或者Dialog之类的东东。
+其实我们的Activity或者Diolog底层的实现也是通过WindowManager，这个 WindowManager是全局的，整个系统就是这个唯一的东东。
+它是显示View的最底层了
+********************************************************************************************************************************************
+
+
+到目前为止，发现LockPatternKeyguardView是每次锁屏的时候都会创建一个，创建的位置是在KeyguardViewManager的show()方法里，如下：
+
+if (mKeyguardView == null) {
+            if (DEBUG) Log.d(TAG, "keyguard view is null, creating it...");
+            mKeyguardView = mKeyguardViewProperties.createKeyguardView(mContext, mUpdateMonitor, this);
+            mKeyguardView.setId(R.id.lock_screen);
+            mKeyguardView.setCallback(mCallback);
+
+            final ViewGroup.LayoutParams lp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT);
+
+            mKeyguardHost.addView(mKeyguardView, lp);
+
+            if (mScreenOn) {
+                mKeyguardView.onScreenTurnedOn();
+            }
+        }
+可以看到这里有个判断，就是当mKeyguardView为null的时候，才会创建，那么哪里将mKeyguardView又设置成null了呢？在KeyguardViewManageer
+的hide方法里：
+
+public synchronized void hide() {
+        if (DEBUG) Log.d(TAG, "hide()");
+        if (mKeyguardHost != null) {
+            mKeyguardHost.setVisibility(View.GONE);
+            // Don't do this right away, so we can let the view continue to animate
+            // as it goes away.
+            if (mKeyguardView != null) {
+                final KeyguardViewBase lastView = mKeyguardView;
+                mKeyguardView = null;
+                mKeyguardHost.postDelayed(new Runnable() {
+                    public void run() {
+                        synchronized (KeyguardViewManager.this) {
+                            lastView.cleanUp();
+                            mKeyguardHost.removeView(lastView);
+                        }
+                    }
+                }, 500);
+            }
+        }
+    }
+
+
+
+每次屏幕暗的时候，判断如果LockscreenView为null的时候，才会去通过反射实例化一个LockscreenView；如果不为null的话，就不会去new
+一个LockscreenView.
+只有双击点击解锁的时候，才会调用manager的hide()方法，将LockscreenView设成null。
+
+现在出的问题是一旦出现那个bug后，系统就不会调用反射来new了，看来还是framework层出的问题。
+
+
+
+1:
+在SummaryActiviy里，关于mms附件中有多张图片时候，需要显示一张图片，修改的代码是：NotificationSumary_libraries的类MessagesDBHelper
+里的setContactMmsImageVip这个函数进行修改。
+
+2:
+在EventPanel里修改的地方是：
+Lockscreen_service里的UnreadMsgManager的updateDetailedInfo()方法。
+
+
+************************************************************Error inflating widget***************************************************
+这个错误自己试了一下，造成这个错误的原因可能是：
+RemoteView所用的layout文件和AppWidgetProviderInfo.initialLayout这两个layout文件不一致所造成的。
+
+现在在Lockscreen里，通过remoteViews = mService.getLSWidgetView(type);得到RemoteView,其中mService是LSWidgetService，这里用到了该Service的getLSWidgetView方法
+：
+public RemoteViews getLSWidgetView(int viewType) {
+		Provider provider = null;
+		int N = mInstalledProviders.size();
+		for (int i = 0; i < N; i++) {
+			provider = mInstalledProviders.get(i);
+			if (provider.viewType == viewType) {
+				return provider.views;
+			}
+		}
+
+		return null;
+}
+这里就又到了寻找Lockscreen自定义安装的provider的情况了。
+
+
+*****************************************************右对齐*****************************************************************
+<ImageView android:id="@+id/mms_attachement_icon"
+				android:src="@drawable/event_attachment_icon" android:layout_width="wrap_content"
+				android:layout_height="wrap_content" android:scaleType="center"
+				android:layout_marginRight="-8dip"
+				android:layout_alignParentRight="true" />
+android:layout_alignParentRight="true" 是定性，对齐线在右边界上；而android:layout_marginRight="-8dip"，也是右对齐，但是对齐线是
+在右边线还往右边8个dip
+
+
+*****************************************************MAT的使用*****************************************************************
+MAT是很强大的。内存溢出检查原因非常强的一个工具。
+
+使用场景：
+在对Lockscreen进行 monkey压力测试的时候（10万次），在zte机子上，当每跑10分钟的时候，orange lockscreen就会失效了，只能使用系统自带的锁屏软件。
+
+发现lockscreen的代码是在system_process这个进程上执行的。解锁，上锁几次后，在ddms里得等到该进程的hprof文件；然后用MAT打开该文件，在Histogram视图
+的搜索框输入Locks,查看到LockscreenView的实例不只一个，所以这就有问题，说明lockscreen没有被系统给回收掉，为什么呢？肯定是有引用指向它，那到底是什么应用呢？
+
+在historm这个视图上，通过正则模糊查找自己关心的类，然后查看到gc root的路径，这里可以查看到引用链条。然后在引用链条上就可以很清楚到查看到到底是哪个对象
+引用了它(LockscreenView),从而导致该对象没有被系统回收掉。
+
+当然针对这个bug，几个知识点
+1：LockscreenView 中添加了TipSlatPanel,所以后者就是前者的child view,自然有一个引用指向LockscreenView
+2:而TipSlatPanel又添加了一个TextView ,后者也是前者的child view,自然有一个引用指向TipSlatPanel
+3:TextView有一个内部对象($),该内部对象有指向TextView的引用，这是因为这个内部对象被别人引用了，所以造成从该内部对象往下所有的对象都不能被回收掉。
+
+所以解决方案就是要将该内部对象的引用去掉，这里就需要查看android TextView 的源代码了。最后的解决方案是发现只要加上这行代码，
+mTipTextView.setCursorVisible(false);
+就可以将该内部对象的引用去掉。
+
+所以到这里，这个bug就解决了。
+
+备注：
+对于从xml文件引用inflate进来的TextView ,和在代码中new 出来的 TextView,该内部对象的引用是不同的。对于前者，不需要加mTipTextView.setCursorVisible(false);
+就可以防止内存泄露；但是后者的话，基本上都需要注意。
+
+
+
+*****************************************************SummaryActivity分析*****************************************************************
+
+锁屏上未读得mms，图片显示的代码是
+SummaryActivity中adapter中的各条目的layout文件是：summary_event_layout.xml
+而锁屏软件中的layout文件是：layout_view_event_out_detailed.xml
+
+*****************************************************Android Service分析*****************************************************************
+
+1：如果绑定了一个service,再unBind该service的时候，会调用该service的onDestroy()方法
+2：如果绑定了一个service,在没有unBind之前调用stopService，则不会终止该service().
+3:在bindService的时候会调用ServiceConnection的onServiceConnected()方法，但是在unBind的时候不会调用ServiceConnection的onServiceDisconnected方法
+
+*****************************************************解锁后快速点击电源键*****************************************************************
+解锁后快速点击电源键，view上没有音乐模块，因为按电源键后，类LockscreenService中
+1：mContext.registerReceiver(mReceiver, filter);
+2：startLSWidgetService()
+3：接收到LSWidgetService ready的广播后，connectLSWidgetService();
+4：成功连接上LSWidgetService后，loadLSWidgetList()，startListeningLSWidgetService();
+5：在loadLSWidgetList()后，addLSWidgetView();
+6：在addLSWidgetView();中，判断mLockscreenView是否为空，如果不为空，则向其中addWidgetView
+
+现在问题就出现在第3步，LockscreenService中cleanUp()的时候，线程是WindowManagerPolicy;LockscreenService的getLockscreenView()方法也是在
+WindowManagerPolicy线程中执行（甚至两个WindowManagerPolicy线程的id都一样）；而当接收到ready广播的时候，线程是其他线程。
+当点击很快的时候，现在WindowManagerPolicy线程里执行getLockscreenView()方法（这时候创建了LockscreenView），然后WindowManagerPolicy线程
+又执行而来cleanUp()方法，将LockscreenView设置为空，并且清空了mHandler中的消息。所以猜测现在几个线程执行流程是：
+1：WindowManagerPolicy执行getLockscreenView()
+2：mReceiver线程里发送HANDLE_READY消息
+3：WindowManagerPolicy执行cleanUp()清空HANDLE_READY消息,所以造成不能继续向下执行。
+
+经过log验证，执行顺序与自己猜测的一致。
+所以，之所以LockscreenView上没有了lswidget  view，就是因为在addLSWidgetView()中，判断mLockscreenView为空了。所以解决的办法就是添加一个mBackupView
+,将mLockscreenView的值付给它，这样在addLSWidgetView()中判断mLockscreenView为空了，就可以再拿到这个对象（显示在当前屏幕前的对象），从而可以想这个对象
+上添加child view了。当然在addLSWidgetView()中，要记得将mBackupView设置为空，防止内存泄露。
+
+
+
+*****************************************************热插拔sd卡*****************************************************************
+热插拔sd卡后，music图标上没有显示暂停的图标。
+第一个问题：在哪里监测到sd卡mount上了呢？在eclipse 空间里搜索和sd卡mount有关的action，结果都没有。
+根据log:
+I/ActivityThread(  808): Finishing broadcast to ComponentInfo{com.orange.homeselector/com.orange.homeselector.util.SdCardMountReceiver}
+
+Lockscreen项目虽然没有接收sdcard mount的广播，但是却能接收这个广播:
+I/MusicLSWidgetService( 1100): onReceive. ACTION: com.android.music.queuechanged
+
+
+没有显示的那个小图标应该是在layout_view_music_player.xml这个文件里：
+
+<ImageView android:id="@+id/mp_playing_status"
+			android:layout_width="24dp" android:layout_height="24dp"
+			android:layout_toRightOf="@id/mp_left_positioner"
+			android:layout_below="@id/pnl_mp_album_cover"	
+			android:layout_marginTop="-10dp" android:layout_marginLeft="-2dp"
+			android:tag="invisible_on_ctl"/>
+
+备注：这里可以看到在layout_view_music_player.xml这个文件里，包含了音乐面板上一层和下一层，上一层可滑动的是RelativeLayout,
+下面含有上一首，下一首的是一个LinearLayout
+
+最后发现需要修改的地方是MusicPlayerClient的setPlayStatusVisibility方法里。
+
+*****************************************************正在运行的程序里不能停掉音乐服务*****************************************************************
+
+在lockscreen里播放音乐的时候，进入settings>applications>running services里，不能关掉音乐service.之前以为是什么android:export="true"或"false"引起的
+后来发现原因是因为lockscreen项目bind了系统音乐播放的service,而没有相应的unBind导致的，解决的方案就是在MusicLSWidgetService中，每次收到
+com.lockscreen.exit（解屏）广播后，unBindService,再每次收到com.lockscreen.enter（锁屏）广播后，bindService。但是这样的话需要有一次多余的bindService操作，
+在MusicLSWidgetService的onCreate()方法中。但是这样改的话，最后发现音乐面板auto-hide不好使用了。还需要认真分析一下auto-hide这个属性。
+
+在MusicPlayerClient类里，通过showPanel()这个函数来决定是否显示/隐藏音乐面板。
+
+private static final int			MODE_ALWAYS_SHOW	= 1;
+private static final int			MODE_AUTO_HIDE		= 0;
+
+
+*****************************************************SummaryActivity里MMS消息还未下载的时候，不显示别针图标*****************************************************************
+一：在锁屏的时候，MMS未下载下来的时候，是显示别针图标的。
+二：在SummaryActivity的时候，MMS未下载下来的时候，是不显示别针图标的。
+
+查看关键类的log
+BaseEvent MessagesDBHelper,打印出来的log都是一样的，那为什么默认显示状况不一样呢？发现是两者对ImageView的android:visibility="gone"属性设置的不一样，
+前者没加GONE,后者加了GONE
+
+<ImageView android:id="@+id/mms_attachement_icon"
+				android:src="@drawable/event_attachment_icon" android:layout_width="wrap_content"
+				android:layout_height="wrap_content" android:scaleType="center"
+				android:layout_marginRight="-8dip"
+				android:layout_alignParentRight="true" />
+
+
+<ImageView android:id="@+id/ns_mms_attachement_icon"
+				android:src="@drawable/event_attachment_icon" android:layout_width="wrap_content"
+				android:layout_height="wrap_content" android:scaleType="center"
+				android:layout_alignParentRight="true"
+				android:layout_marginRight="-8dip" />
+但是这样的话，还是不行，因为在BaseEvent里有这样一段代码：
+
+if (isAttVisible) {
+			attIcon.setVisibility(View.VISIBLE);
+			LogHelper.d(TAG, "#################### attIcon VISIBLE");
+		} else {
+			attIcon.setVisibility(View.GONE);
+			LogHelper.d(TAG, "#################### attIcon GONE");
+		}
+所以，所说是把GONE去掉了，但是刚开始的时候isAttVisible是false还是不会显示，但是假如把这代码去掉的话，会导致对于未接来电，也有
+别针图标，这个显示是不合适的，所以应该在未接来电的相关代码里把isAttVisible赋值成false.
+但是这样做也会有问题，改动的太大。最简单的做法就是：
+在MessagesDBHelper类的isAttchmentIconVisible方法里，将
+return attCount > 1 || (attCount == 1 && attGenericCount == 1);
+改成：
+return attCount > 1 || (attCount == 1 && attGenericCount == 1) || (0 == attCount);
+
+改动理由就是：
+对于MMS来说，在图片，附件没有下载下来的时候，attCount初始值是0，这时候应该都显示别针图标。而当图片下载下来以后，再根据图片的数量
+来决定是否显示别针图标。
+
+【n天后】
+发现这样会产生另外一个bug(0013710),就是发送只有主题，没有附件的彩信时，SummaryActivity中仍然会显示别针图标。
+
+是不是应该区分两种情况，彩信已经下载和未下载的情况。经过网上搜索，发现：
+android pdu表说明 
+st	状态，未下载为135，已下载为空
+
+
+*****************************************************电量分析*****************************************************************
+
+adb shell am broadcast -a android.intent.action.BATTERY_CHANGED --ei level 10
+
+log文件位置：
+电量图片上出的问题是因为之前是从KeyguardUpdateMediator这个类里取得，但是这个类里取得电量值有延迟，所以会造成电量信息不准。
+
+看到设置里有设备信息，可以显示电量的值，以为该值是可以直接读取类似Settings里的值之类的。但是看过Settings的源代码后，发现并不是这样，而也是接收广播的，
+并且知道Intent.ACTION_BATTERY_CHANGED这个广播是一个sticky广播，该广播是android里比较特殊的一个广播，就是该广播注册后，即使没有人发广播给他，他也可以从
+上次发广播的状态下取值。简单来说，sticky广播就相当于一个取值操作。
+
+但是接下来的问题就是：在LockscreenView里new 一个TimeDateView的时候：
+
+mHandler.post(new Runnable() {
+
+			@Override
+			public void run() {
+				if (null != mWidgetLayer) {
+					boolean isDevicePluggedIn = isDevicePluggedIn();
+					
+					mContext.registerReceiver(mBatteryInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+					
+					timeDateView = new TimeDateView(mContext,
+							isDevicePluggedIn, mBatteryLevel);
+					mWidgetLayer.addNativeView(timeDateView);
+					setTimeDateViewCallback(timeDateView);
+					mContext.unregisterReceiver(mBatteryInfoReceiver);
+					
+					
+				}
+			}
+		});
+
+	private BroadcastReceiver mBatteryInfoReceiver = new BroadcastReceiver(){
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if(Intent.ACTION_BATTERY_CHANGED.equals(intent.getAction())){
+				int level = intent.getIntExtra("level",0);
+				if(0 != level){
+					mBatteryLevel = level;
+				}
+				
+			}
+		}
+	};
+
+
+发现mBatteryLeve的值有时候会为0，因为registerReceiver需要一定的时间，如果用户操作快的话，可能还没有取到mBatteryLevel 的值，就已经timeDateView = new TimeDateView(mContext,
+							isDevicePluggedIn, mBatteryLevel);
+这样，可能会导致mBatteryLevel 为0，这样是不正确的。
+
+通过log发现,handler.post()和receiver 的onReceiver方法是两个不同的线程，所以这个本质还是线程同步的问题，但是方便起见，这里加上一个标记变量就可以解决问题了：
+
+mHandler.post(new Runnable() {
+
+			@Override
+			public void run() {
+				if (null != mWidgetLayer) {
+					boolean isDevicePluggedIn = isDevicePluggedIn();
+					getCorrectBatteryLevel = false;
+					mContext.registerReceiver(mBatteryInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+					while(!getCorrectBatteryLevel){
+						LogHelper.d("thread","#################### post wait recevier to get battery value");
+					}
+					timeDateView = new TimeDateView(mContext,
+							isDevicePluggedIn, mBatteryLevel);
+					mWidgetLayer.addNativeView(timeDateView);
+					setTimeDateViewCallback(timeDateView);
+					mContext.unregisterReceiver(mBatteryInfoReceiver);
+					
+					
+				}
+			}
+		});
+	}
+	int mBatteryLevel;
+	boolean getCorrectBatteryLevel;
+	private BroadcastReceiver mBatteryInfoReceiver = new BroadcastReceiver(){
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if(Intent.ACTION_BATTERY_CHANGED.equals(intent.getAction())){
+				int level = intent.getIntExtra("level",0);
+				if(0 != level){
+					mBatteryLevel = level;
+				}
+				getCorrectBatteryLevel = true;
+			}
+		}
+	};
+后又讨论不能让主线程等，所以就又改成先用keyguardupdate，然后再用receiver的刷新。这样，当每次锁屏的时候，电量显示是对的，但是在锁屏时候，播放音乐的时候，
+lockscreen上的电量不会动态显示，经过log，发现keyguardupdate的回调函数在电量发生变化的时候，通过updateViewOnBatteryChange调用的时候，传进来的level都是一样的，
+比如经过播放10分钟的音乐，电量变化有66,65,64,63，但keyguardupdate传进来的level都是最开始的66，所以才不会刷新。当在TimeDateView中通过sticky receiver来做的时候
+仍然是这样。
+
+
+**********************************************************************voice mail*************************************************************************
+voicemail的数据库结构
+
+/data/data/com.orange.vvm/databases/VVM,该数据库里拥有的表有
+vvm_greeting,vvm_task,vvm_events,vvm_msg,SummaryActivity上显示的信息应该就是vvm_msg中的数据
+
+发现对于一条VVM消息，字段status来标记是否已经读过，1:已读 2：未读
+update vvm_msg set status=2 where _id in(1,2,3);这是正确的更新语句，但是看现在的lockscreen里的代码：
+
+public static boolean updateVVMStatusByIds(Context context, String[] ids) {
+		ContentValues values = new ContentValues();
+		values.put(COLUMN_STATUS, 2);
+		int count;
+		try {
+			String where = " ";
+			for (int i = 0; i < ids.length; i++) {
+				if (" ".equals(where)) {
+					where = where + " _id=? ";
+				} else {
+					where = where + " or _id=? ";
+				}
+			}
+			LogHelper.d("VVM", "##################updateVVMStatusByIds where is: " + where);
+			count = context.getContentResolver().update(URI_VOICE_MAIL, values,
+					where, ids);
+		} catch (Exception e) {
+			LogHelper.e(TAG, "updateVVMStatusByIds. ", e);
+			return false;
+		}
+		if (count != 0) {
+			return true;
+		}
+		return false;
+	}
+
+但是还有个问题，就是有missed call,unread msg,unread vvm的时候，点击clearAll,msg和call都没了，但是voicemail还存在，通过看log，发现已经执行修改数据库的
+命令了：
+D/VVM     ( 3696): ##################updateVVMStatusByIds where is: _id in(1) ,update count is: 1,status set to : 2
+D/VVM     ( 3696): ##################updateVVMStatusByIds where is: _id in(1) ,update count is: 1,status set to : 2
+
+但是查看数据库，值没改过来，疑问是执行了两次。
+
+adb logcat -s VVM SummaryActivity VoiceMailLoader LoaderController VoicemailDBHelper
+
+SummaryActivit里有一个监听voicemail发生变化的receiver,如果收到voicemail变化的广播，惊异，这里竟然注册了两个VoiceMailReceiver的实例，太震撼了。
+
+*******************************************************************home键盘lockscreenSettings**********************************************************
+关于Lockscreen_settings，直接进入settings activity的情况是：
+1：默认桌面为null
+2: 默认桌面是orange homescreen
+
+除此以外，弹出对话框，若安装了orange selector，则弹出进入selector的对话框；如果没安，弹出选择桌面的系统对话框
+
+对于按下HOME键，发现一个情况，就是假如在PreferenceSettingActivity里，没有按下back键的时候，每次点击HOME键，就不会发Intent;但是一旦在PreferenceSettingActivity
+里按下过back键的时候，每次按下Home键，程序的流程就和按下了Back键一样。
+
+android:launchMode="singleInstance"
+
+这个可能还是activity单态之类的原因造成的，
+改之前：
+当DetermineTheDefaultHomeActivity 调用PreferenceSettingActivity后，自身没有finish掉，所以会走DetermineTheDefaultHomeActivity的onNewIntent()的流程。
+而通过Home键选择进入Lockscren_settings的时候，用的还是之前的从PreferenceSettingActivity进来的intent,所以会finish掉。
+
+改完后，
+DetermineTheDefaultHomeActivity不是单态的，并且每次调用PreferenceSettingActivity的时候，都会自身finish掉。
+这样每次通过Home键选择进入Lockscreen_settings的时候，都会重新走一下onCreate,onResume，这样就不会用到之前的从PreferenceSettingActivity进来的intent，
+也就不会将自身finish了。
+
+
+
+I/ActivityManager(  209): Starting: Intent { act=com.orange.lockscreen.action.EVENT_SETTING flg=0x10000000 cmp=com.orange.notificationsummary/.Prefere
+nceNotificationSettingActivity } from pid 5041
+
+
+
+android:launchMode="singleInstance"
+
+
+
+********************************************************android权限***************************************************
+对于LockscreenSettings这个应用，声明了权限
+<uses-permission android:name="android.permission.SET_PREFERRED_APPLICATIONS"></uses-permission>
+
+经过在framework/base下搜索SET_PREFERRED_APPLICATIONS，发现该权限是在文件
+./data/etc/platform.xml里声明的
+<assign-permission name="android.permission.SET_PREFERRED_APPLICATIONS" uid="shell"/>
+
+所以对于Lockscreen_settings要想使用该权限，就必须要用系统相关的key签名
+
+
+
+*******************************************************NotificationSummary_Libraries重构*****************************************************************
+一些类，不应当在library里出现，如SummaryActivity,以为android library很复杂，没想到很简单，只是将NotificationSummary_Libraries项目里的包
+com.orange.notificationsummary，
+com.orange.notificationsummary.loader
+复制到NotificationSummary里即可。这样在lockscreen_service里就没有这两个冗余的包了。
+
+*******************************************************Proguard****************************************************************
+Andriod tool ProGuard使用：
+该工具在release mode下使用，在debug mode下不能用
+ProGuard分为四个步骤,shrinker,optimizer,obfuscator,preverifier
+
+eclipse 下开发的android程序，默认是debug mode,不是 release mode,debug/release mode 和签名没签名是两个概念。
+
+【如何判断一个apk是否已经签名了】
+用rar打开apk,看是否还有/META-INF文件夹，该文件夹下如果有MANIFEST.MF,CERT.SF,CRET.RSA文件的话，表明已经签过名了。
+
+介绍android如何使用proguard的一个好博客：
+
+http://www.androidengineer.com/2010/06/using-ant-to-automate-building-android.html
+
+当在Eclipse里新建了一个android project后，默认是没有build.xml这个文件的。这时候可以在通过命令行，给该项目加上build.xml文件
+步骤：
+1：进入到项目目录下
+2：android update project --path .
+执行该命令，就会创建local.properties文件，这个比较有用，因为可以根据不同的系统平台(Linux,Windows)来生成不同的内容。
+
+通过命令行创建一个android project的时候，在build.xml里有一个
+<taskdef name="setup"
+        classname="com.android.ant.SetupTask"
+        classpathref="android.antlibs" />
+
+这说明，默认使用的编译系统是android 自带的，而不是用户自己定义的。所以在eclipse导入该项目的时候会在build.xml第二行报错。因为eclipse找不到help target,
+要想使用自定义的编译系统，就需要把C:\development\android-sdk-windows-2.3\platforms\android-2.1\templates\android_rules.xml文件中的project标签下的内容
+都拷贝到自己的build.xml里（这样以后，就可以保证无论在命令行，还是在eclipse里，都可以按各自的方式生成apk），然后根据需要进行修改。
+
+在ant release 的时候，
+
+-package-no-sign:
+[apkbuilder] Creating TestAntAndroid-unsigned.apk for release...
+
+-release-check:
+
+-release-nosign:
+     [echo] No key.store and key.alias properties found in build.properties.
+     [echo] Please sign C:\temp\ant_android\bin\TestAntAndroid-unsigned.apk manually
+     [echo] and run zipalign from the Android SDK tools.
+
+可以看到生成了release版本，但是没有签名。要想生成签名的release，需要在build.properties里加入：
+key.store=keystore
+key.alias=www.androidengineer.com
+
+然后再release：
+release:
+    [input] skipping input as property key.store.password has already been set.
+    [input] skipping input as property key.alias.password has already been set.
+     [echo] Signing final apk...
+  [signjar] Signing JAR: C:\temp\ant_android\bin\TestAntAndroid-unsigned.apk to C:\temp\ant_android\bin\TestAntAndroid-unaligned.apk as smileryan
+  [signjar] 输入密钥库的口令短语：
+     [echo] Running zip align on final apk...
+     [echo] Release Package: C:\temp\ant_android\bin\TestAntAndroid-release.apk
+
+【Lockscreen】
+
+发现在对Lockscreen项目执行ant的时候，会出现很多错误，他们之前在Lockscreen的build.xml里加入了很多taskdef什么的，并且local.properties也不一样，之前的是：
+sdk.dir=/root/android-sdk-linux_86
+keystore_dir=/root/.android
+source-clients=com/orange/homescreen/pil
+checkstyle.home=/usr/local/checkstyle-5.1
+findbugs.home=/usr/local/findbugs-1.3.9
+pmd.home=/usr/local/pmd-4.2.5
+
+可以看到之前是在linux上开发的。但是现在也不可能去一条条猜测之前是怎么实现的了，还是重新修改build.xml吧。
+
+
+修改玩后，执行ant release,但是还是报之前和eclipse一样的错
+
+[java] java.io.IOException: The output jar is empty. Did you specify the proper '-keep' options?
+[java]     at proguard.shrink.Shrinker.execute(Shrinker.java:148)
+[java]     at proguard.ProGuard.shrink(ProGuard.java:275)
+[java]     at proguard.ProGuard.execute(ProGuard.java:101)
+[java]     at proguard.ProGuard.main(ProGuard.java:492)
+
+这个错误挺难搞，还去看了看源代码，但是根本看不懂。后来想了想proguard/sample下的android.pro,发现有：
+
+# Your application may contain more items that need to be preserved; 
+# typically classes that are dynamically created using Class.forName:
+
+# -keep public class mypackage.MyClass
+# -keep public interface mypackage.MyInterface
+# -keep public class * implements mypackage.MyInterface
+
+激发了灵感，是不是因为proguard在优化的时候把不该删除的类删除了呢，因为Lockscreen这个项目的入口比较特殊，不是Activity，而是通过framework层反射过来的，入口
+在LockscreenManager类，所以需要在proguard.cfg里加一行keep
+-keep public class com.orange.lockscreen.LockscreenManager
+
+这样就可以ant release就可以通过了。OK
+
+
+【Lockscreen_settings】
+这个项目配置proguard就简单些了。OK
+
+
+【NotificationSummary】
+在编译的时候，发现很多资源文件中的内容找不到，因为资源都是在NotificationSummary_Libraries这个类里的，生成R.java这个文件是用aapt这个命令来做的，
+看一下aapt命令的使用，发现aapt的-S 选项后面接的就是res位置，这里只需要修改成../NotificationSummary_Libraries/res即可。OK
+
+
+【Lockscreen_service】
+因为这个项目引用了NotificationSummary_Libraries项目中的文件，所以在build.xml文件里添加：
+<property name="NotificationSummary_Libraries_src.dir" value="../NotificationSummary_Libraries/src" />
+
+在complie这个target里，添加src path
+<src path="${NotificationSummary_Libraries_src.dir}" />
+
+ant release的时候：
+
+compile:
+    [javac] C:\workspace_locksreen\Lockscreen_service\build.xml:312: warning: 'includeantruntime' was not set, defaulting to build.sys
+set to false for repeatable builds
+    [javac] Compiling 87 source files to C:\workspace_locksreen\Lockscreen_service\bin\classes
+    [javac] C:\workspace_locksreen\Lockscreen_service\src\com\orange\lswidget\LSWidgetService.java:186: 找不到符号
+    [javac] 符号： 变量 styleable
+    [javac] 位置： 类 com.orange.lswidget.R
+    [javac]                                     R.styleable.LSWidgetProviderInfo);
+    [javac]                                      ^
+    [javac] C:\workspace_locksreen\Lockscreen_service\src\com\orange\lswidget\LSWidgetService.java:189: 找不到符号
+    [javac] 符号： 变量 styleable
+    [javac] 位置： 类 com.orange.lswidget.R
+    [javac]                                     R.styleable.LSWidgetProviderInfo_initialLayout, 0);
+
+可能还是生成R时候的原因，因为Lockscreen_service引用了NotificationSummary_Libraries，在eclipse中，可能在生成R.java的过程中，会把NotificationSummary_Libraries
+/res文件下的内容给引用进来。但是ant release时候没有引用进来所致。
+
+apt的-S 选项后面接的就是res位置，但是可以指定多个目录吗？刚试了一下 dirA;dirB不行；两个aapt -S dirA -S dirB也不行。
+
+两个方案：
+1：找出一个可以aapt 指定多个目录的方法
+2：将Lockscreen_service和NotificationSummary_Libraries比较，使NotificationSummary_Libraries后者不包含res目录
+
+解决方案：
+1：网上看了一个这个方案：
+<exec executable="${aapt}" failonerror="true">
+	            <arg value="package" />
+	            <arg line="${v.option}" />
+	            <arg value="-m" />
+	            <arg value="-J" />
+	            <arg path="${gen.absolute.dir}" />
+	            <arg value="-M" />
+	            <arg path="AndroidManifest.xml" />
+	            <arg value="-S" />
+	            <arg path="${resource.absolute.dir}" />
+	        	<arg value="-S" />
+	        	<arg path="${NotificationSummary_Libraries_res.dir}" />
+	            <arg value="-I" />
+	            <arg path="${android.jar}" />
+	        </exec>
+
+ant release后，出现这个错误：
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values\strings.xml:3: error: Resource at app_name appears in overlay but not in the base pac
+kage; use <add-resource> to add.
+
+资源重复，觉得干脆把
+Lockscreen_service和NotificationSummary_Libraries  res/中重复的资源全部去掉吧，这样才会使Lockscreen_service
+更加精简。
+
+
+对照Lockscreen_service 和  NotificationSummary_Libraries删除res后，ant release的时候，还是有下列错误：
+
+     [echo] Generating R.java / Manifest.java from the resources...
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values-hdpi\dimens.xml:41: error: Resource at music_album_icon_width appears in overlay but
+not in the base package; use <add-resource> to add.
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values-hdpi\dimens.xml:42: error: Resource at music_btn_padding_top appears in overlay but n
+ot in the base package; use <add-resource> to add.
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values-hdpi\dimens.xml:43: error: Resource at music_btn_padding_bottom appears in overlay bu
+t not in the base package; use <add-resource> to add.
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values-hdpi\dimens.xml:44: error: Resource at music_btn_height appears in overlay but not in
+ the base package; use <add-resource> to add.
+
+发现是因为在Lockscreen_service下有values-hdpi/dimens.xml,values-mdpi/dimens.xml,而NotificationSummary_Libraries有values/dimens.xml好像冲突了，
+解决办法：
+把values-hdpi/dimens.xml,values-mdpi/dimens.xml复制（不是移动）到NotificationSummary_Libraries/res下。这个错误就就解决了，但是还有下边的错误：
+
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values-ro-rRO\string.xml:3: error: Resource at app_name appears in overlay but not in the ba
+se package; use <add-resource> to add.
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values-sk-rSK\string.xml:3: error: Resource at app_name appears in overlay but not in the ba
+se package; use <add-resource> to add.
+     [exec] C:\workspace_locksreen\Lockscreen_service\res\values-uk-rCH\string.xml:3: error: Resource at app_name appears in overlay but not in the ba
+se package; use <add-resource> to add.
+
+解决办法：
+把app_name从Lockscreen_service/res/values里放到NotificationSummary_Libraries/res/values下即可。
+
+
+
+继续，
+出现找不到com.orange.notificationsummary.R的错误，发现在Lockscreen_service下执行ant release的时候，在gen目录下只生成了com.orange.lswidget.R;但是eclipse
+自动编译的时候，除了com.orange.lswidget.R外，还生成了com.orange.notificationsummary.R。这是怎么回事呢，经调试，发现是每一个aapt命令会生成一个*.R文件，
+所以在Lockscreen_service的build.xml里，要写两个appt命令，如下：
+
+
+ <target name="-resource-src" depends="-dirs">
+	        <echo>Generating R.java / Manifest.java from the resources...</echo>
+	        <exec executable="${aapt}" failonerror="true">
+	            <arg value="package" />
+	            <arg line="${v.option}" />
+	            <arg value="-m" />
+	            <arg value="-J" />
+	            <arg path="${gen.absolute.dir}" />
+	            <arg value="-M" />
+	            <arg path="AndroidManifest.xml" />
+	            <arg value="-S" />
+	            <arg path="${resource.absolute.dir}" />
+	        	<arg value="-S" />
+	        	<arg path="${NotificationSummary_Libraries_res.dir}" />
+	            <arg value="-I" />
+	            <arg path="${android.jar}" />
+	        </exec>
+	    	
+	    	<exec executable="${aapt}" failonerror="true">
+	    		            <arg value="package" />
+	    		            <arg line="${v.option}" />
+	    		            <arg value="-m" />
+	    		            <arg value="-J" />
+	    		            <arg path="${gen.absolute.dir}" />
+	    		            <arg value="-M" />
+	    		            <arg path="../NotificationSummary_Libraries/AndroidManifest.xml" /> //生成com.orange.notificationsummary.R
+	    		            <arg value="-S" />
+	    		            <arg path="${resource.absolute.dir}" />
+	    		        	<arg value="-S" />
+	    		        	<arg path="${NotificationSummary_Libraries_res.dir}" />
+	    		            <arg value="-I" />
+	    		            <arg path="${android.jar}" />
+	    		        </exec>
+	    </target>
+
+
+这样加上后，在-resource-src过程中，可以正常通过了，但是在package-resources过程中，又出现了一些错误
+
+ <target name="-package-resources">
+	        <echo>Packaging resources</echo>
+	        <aaptexec executable="${aapt}"
+	                command="package"
+	                manifest="AndroidManifest.xml"
+	                resources="${resource.absolute.dir}"
+	                assets="${asset.absolute.dir}"
+	                androidjar="${android.jar}"
+	                outfolder="${out.absolute.dir}"
+	                basename="${ant.project.name}" />
+	    </target>
+
+这些错误都是些找不到资源的错误，可能是之前在Lockscreen_service里删除的太多了，再把缺失的资源文件从NotificationSummary_Libraries/res里拷贝到
+Lockscreen_service/res里一个个解决就可以了。
+
+结果都可以编译过了，结果一安装上试了下，都根本没办法运行。唉，这步迈的太大了，也没办法回退了，重头开始吧。
+
+【第二轮】
+【Lockscreen_settings】
+先从最简单的Lockscreen_settings下手，发现一直报LSCheckBoxPreference这个类找不到的错误。猜测可能是proguard把该类删除了，于是在
+Lockscreen_settings/proguard.cfg上也加入了-keep public class com.orange.lockscreensettings.LSCheckBoxPreference
+但是，还是会把该类给删除掉，试了几次都这样。最后才发现原来Lockscreen_settings下 有两个proguard.cfg文件，一个是
+Lockscreen_settings/proguard.cfg，一个是Lockscreen_settings/proguard/proguard.cfg,并且默认使用的是第二个（即使在default.properties
+里指定了proguard.config=proguard.cfg也无济于事），解决办法是删除掉第一个就可以了。
+
+【NotificationSummary】
+
+proguard处理后，发生下面的错误：
+
+
+: FATAL EXCEPTION: main
+: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.orange.notificationsummary/com.orange.notificationsum
+ava.lang.NullPointerException
+:        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:1768)
+:        at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:1784)
+:        at android.app.ActivityThread.access$1500(ActivityThread.java:123)
+:        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:939)
+:        at android.os.Handler.dispatchMessage(Handler.java:99)
+:        at android.os.Looper.loop(Looper.java:123)
+:        at android.app.ActivityThread.main(ActivityThread.java:3839)
+:        at java.lang.reflect.Method.invokeNative(Native Method)
+:        at java.lang.reflect.Method.invoke(Method.java:507)
+:        at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:841)
+:        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:599)
+:        at dalvik.system.NativeStart.main(Native Method)
+: Caused by: java.lang.NullPointerException
+:        at com.orange.notificationsummary.SummaryActivity.onCreate(Unknown Source)
+:        at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1047)
+:        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:1722)
+:        ... 11 more
+):   Force finishing activity com.orange.notificationsummary/.SummaryActivity
+): Activity pause timeout for HistoryRecord{408ea8e0 com.orange.notificationsummary/.SummaryActivity}
+startTrackingApplications(): monitor(com.orange.homescreen.pil.defaultimpl.application.ApplicationMonitor@4070b588)
+startTrackingApplications(): sdmon(com.orange.homescreen.pil.android22impl.application.SDCardAppsMonitor@40741e38)
+
+发现也是因为proguard删除了不该删除的类造成的。在proguard.cfg里加上以下代码就好：
+
+-keep public interface com.orange.homescreen.pil.NotificationSummaryInterface
+-keep public class com.orange.homescreen.pil.defaultimpl.NotificationSummaryInterfaceImpl
+
+
+但是现在有一个比较严重的问题，就是发现orange的锁屏软件不能被调用了。这是什么原因呢？经查看，好像是签名不对的原因。
+
+
+【Lockscreen_service】
+
+proguard后，也有一个异常：
+E/AndroidRuntime( 8357): java.lang.RuntimeException: Unable to create service com.orange.lswidget.widgets.event.EventLSWidgetService: java.lang.NullP
+interException
+E/AndroidRuntime( 8357):        at android.app.ActivityThread.handleCreateService(ActivityThread.java:2082)
+E/AndroidRuntime( 8357):        at android.app.ActivityThread.access$2500(ActivityThread.java:124)
+E/AndroidRuntime( 8357):        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1001)
+E/AndroidRuntime( 8357):        at android.os.Handler.dispatchMessage(Handler.java:99)
+E/AndroidRuntime( 8357):        at android.os.Looper.loop(Looper.java:130)
+E/AndroidRuntime( 8357):        at android.app.ActivityThread.main(ActivityThread.java:3822)
+E/AndroidRuntime( 8357):        at java.lang.reflect.Method.invokeNative(Native Method)
+E/AndroidRuntime( 8357):        at java.lang.reflect.Method.invoke(Method.java:507)
+E/AndroidRuntime( 8357):        at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:839)
+E/AndroidRuntime( 8357):        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:597)
+E/AndroidRuntime( 8357):        at dalvik.system.NativeStart.main(Native Method)
+E/AndroidRuntime( 8357): Caused by: java.lang.NullPointerException
+E/AndroidRuntime( 8357):        at com.orange.lswidget.widgets.event.EventLSWidgetService.onCreate(EventLSWidgetService.java:75)
+E/AndroidRuntime( 8357):        at android.app.ActivityThread.handleCreateService(ActivityThread.java:2072)
+E/AndroidRuntime( 8357):        ... 10 more
+E/ActivityThread(  368): >>> handling: 114
+
+解决方案也是在proguard.cfg里加上
+-keep public interface com.orange.homescreen.pil.NotificationSummaryInterface
+-keep public class com.orange.homescreen.pil.defaultimpl.NotificationSummaryInterfaceImpl
+
+【Lockscreen】
+proguard后，发现orange lockscreen不能生效，问题已经缩小到就是Lockscreen这个应用造成的。是签名的原因吗?之前好使的lockscreen是eclipse自动生成的
+是用debug签名的，而proguard是用ant 编译没有签名的。难道是这个原因造成的？但是其他三个都是用ant 没签名也可以啊？怎么回事？
+
+android debug key位置是在eclipse里preferneces -> Android -> Bulid Setting里为如下结果：Default debug keystore:
+
+key.store=debug.keystore
+key.alias=androiddebugkey
+key.store.password=android
+key.alias.password=android
+
+可能是Lockscreen 在proguard的时候，删除了某些不应该删除的文件吧。
+
+果然如此，是因为proguard删除了LockscreenManager中的getLockscreen方法（尽管proguard.cfg中已经有
+-keep public class com.orange.lockscreen.LockscreenManager
+，但是仍然会删除该方法，还应当再加上
+-keepclassmembers class com.orange.lockscreen.LockscreenManager{
+   public static com.android.internal.policy.impl.ExtLockScreenLoader$ExtLockScreen getLockscreen(android.content.Context);
+}才行）
+
+【2011-10-20】
+这样安装完后，可以出现orange 锁屏界面了，但是发现播放音乐的时候，出现Error Inflating widget的错误。异常如下：
+
+V/LockscreenService(  172): updateLSWidget. callback from LSWidgetService.
+V/LockscreenService(  172): updateLSWidgetView. update LSWidget View, viewType=[0x101] null == mLockscreenView : false
+D/LockscreenService(  172): null != data && null != data.host : true
+D/LockscreenService(  172): data.data: android.widget.RemoteViews@409185c0
+W/AppWidgetHostView(  172): updateAppWidget couldn't find any view, using error view
+W/AppWidgetHostView(  172): android.widget.RemoteViews$ActionException: can't find view: 0x7f06002e
+W/AppWidgetHostView(  172):     at android.widget.RemoteViews$ReflectionAction.apply(RemoteViews.java:447)
+W/AppWidgetHostView(  172):     at android.widget.RemoteViews.performApply(RemoteViews.java:964)
+W/AppWidgetHostView(  172):     at android.widget.RemoteViews.apply(RemoteViews.java:941)
+W/AppWidgetHostView(  172):     at android.appwidget.AppWidgetHostView.updateAppWidget(AppWidgetHostView.java:218)
+W/AppWidgetHostView(  172):     at com.orange.lockscreen.e.g.run(LockscreenService.java:343)//data.host.updateAppWidget(data.data);
+W/AppWidgetHostView(  172):     at android.os.Handler.handleCallback(Handler.java:587)
+W/AppWidgetHostView(  172):     at android.os.Handler.dispatchMessage(Handler.java:92)
+W/AppWidgetHostView(  172):     at android.os.Looper.loop(Looper.java:130)
+W/AppWidgetHostView(  172):     at com.android.server.WindowManagerService$PolicyThread.run(WindowManagerService.java:597)
+V/GridLayout(  172): onMeasure.
+V/GridLayout(  172): onMeasure.
+V/GridLayout(  172): onMeasure.
+V/GridLayout(  172): onMeasure.
+V/GridLayout(  172): onLayout. who=com.orange.lockscreen.c.d.g changed=false
+V/LSWidgetService( 5473): updateLSWidgetByProvider. Got RemoteViews by ComponentName=[ComponentInfo{com.orange.lswidget/com.orange.lswidget.widgets.mu
+sicplayer.MusicLSWidgetProvider}]
+I/MusicPlayerClient( 5473): hasContent true, getAppWidgetWit^C
+
+
+猜想会不会是因为Lockscreen_service也删除了不该删除的某些类造成的呢？
+测试的时候，使用的Lockscreen_service是未经过proguard处理的，而其他三个都是proguard处理的，发现播放音乐的时候可以正常显示（
+未读事件的还没有测试)。
+
+***************************************************** android 使用 Handsent sms出现的bug**********************************
+android查询未读短信
+/data/data/com.android.providers.telephony/databases/mmssms.db
+存放短信的表示sms,标记是否已读的字段是read:1(已读)，0(未读).
+
+存放彩信：
+
+设置data.hasContent的代码是在EventLSWidgetClient类里的startQueryForMessage()方法里，如果sumCount > 1，则hasContent为true；否则
+为false
+viewType是Provider.viewType
+public static final int		TYPE_MUSIC		= 0x101;
+public static final int		TYPE_EVENT		= 0x102;
+
+bug现象：
+
+handcent sms那个改了，但是引出另外一个问题，就是之前没有任何未读信息，这时候来了一个未解来电，竟然不能正常显示这个未解来电了。
+只能重新解锁，再锁屏才行。但是再打一个电话，有两个未接来电的时候，就又正常了。第一条未接短信倒是没问题。
+
+问题可能是因为昨天修改handcent sms出现的：
+
+public void run() {
+					LockscreenViewData data = mLockscreenViewList.get(type);
+					if (null != data && null != data.host) {
+						LogHelper.d(TAG, "##################### null != data.data " + (null != data.data)
+								+ " data.hasContent:" + (data.hasContent));
+						if (null != data.data) {
+							//add for fix bug with handscent receive msg
+							if(!data.hasContent && Constants.LSWidget_Type.TYPE_EVENT == type ){
+								data.host.removeAllViews();
+							}
+							data.host.updateAppWidget(data.data);
+						}
+						mLockscreenView
+								.setWidgetMoveable(type, data.hasContent);
+					} else {
+						LogHelper.v(TAG,
+								"updateLSWidgetView type is not in the list.");
+					}
+				}
+
+data是mLockscreenViewList里的一个对象，而mLockscreenViewList是在每次解屏，锁屏的时候才会重新添加数据。当有未接来电或未接短信的
+时候，并没有重新向mLockscreenViewList里添加数据。
+
+当每次点亮屏幕的时候，会执行下列操作：
+1：查询数据库中的未读数据
+2：根据未读消息组装RemoteViews
+3：把RemoteView传给LockscreenService,让它刷新界面
+
+但流程要严格是这样的话，就不应该会出现handcent sms中出现的bug,因为有未接短信来的时候，查询数据库组装RemoteView(view1),并更新。但是
+这时候handcent sms强制解锁，回复完短信后，标记短信成已读。再次查询数据库组装RemoteView(view2),并更新。但是结果是该bug存在，那么会
+不会是在LockscreenService里更新时候RemoteView不是同一个呢？打印出来EventLSWidgetClient中的RemoteView和LockscreenService里的RemoteView
+看看结果。
+D/EventLSWidgetService( 5819): ******************* onQueryComplete(),RemoteView id: android.widget.RemoteViews@405b75d8
+D/LSWidgetManager( 5819): ******************* updateLSWidgetProvider(),RemoteView id: android.widget.RemoteViews@405b75d8
+V/LSWidgetService( 5819): updateLSWidgetByProvider.
+D/LSWidgetService( 5819): ***************** updateLSWidgetByProvider(),RemoteView id: android.widget.RemoteViews@405b75d8
+D/LockscreenService(  187): ***************** updateLSWidget(),RemoteView id: android.widget.RemoteViews@4095ad68
+V/LockscreenService(  187): updateLSWidgetView. update LSWidget View, viewType=[0x102]
+D/LockscreenService(  187): ************************* updateLSWidgetView(int viewType),RemoteView id: android.widget.RemoteViews@4095ad68
+
+可见RemoteView前后是不一样的，所以有可能会产生错误，但是发现因为RemoteView是跨进程的，可能在Lockscreen_service和Lockscreen里对象序列号本身就不一样。
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+每次锁屏，解屏的时候，才会重新new LockscreenService,并初始化LockscreenService的相关属性.
+每次点亮屏幕的时候：
+
+D/EventLSWidgetService( 7568): ********************************* Intent.ACTION_SCREEN_ON invoke query()
+I/EventLSWidgetClient( 7568): startQueryForMessage. isPrivacy: false ,sumCount:0 ,voiceMailCount: 0, misscallCount: 0,unreadMessageCount: 0
+D/EventLSWidgetClient( 7568): ******************************* startQueryForMessage() initial remoteViews
+D/EventLSWidgetClient( 7568): ************************************* startQueryForMessage(),RemoteView id: android.widget.RemoteViews@4059e9f8
+D/EventLSWidgetService( 7568): ******************* onQueryComplete(),RemoteView id: android.widget.RemoteViews@4059e9f8
+V/LSWidgetService( 7568): updateLSWidgetByProvider.
+D/LSWidgetService( 7568): ***************** updateLSWidgetByProvider(),RemoteView id: android.widget.RemoteViews@4059e9f8
+D/LSWidgetService( 7568):  detailed.
+D/LockscreenService(  187): ***************** updateLSWidget(),RemoteView id: android.widget.RemoteViews@405ab290
+V/LockscreenService(  187): updateLSWidgetView. update LSWidget View, viewType=[0x102]
+D/LockscreenService(  187): ************************* updateLSWidgetView(int viewType),RemoteView id: android.widget.RemoteViews@405ab290
+V/LSWidgetService( 7568): updateLSWidgetByProvider. Got RemoteViews by ComponentName=[ComponentInfo{com.orange.lswidget/com.orange.lswidget.widgets.ev
+ent.EventLSWidgetProvider}]
+
+
+可见，在Lockscreen_service在每次点亮屏幕，组装RemoteView 的时候，都是initial remoteViews，
+
+RemoteViews remoteViews = new RemoteViews(LSEventUtils.sPackageName,R.layout.event);
+event.xml：
+
+ <include 
+   		android:id="@+id/basic"
+    	layout="@layout/layout_view_event_out_empty"
+    	android:visibility="invisible"
+    	/>
+    	
+    <include 
+    	android:id="@+id/detailed"
+    	layout="@layout/layout_view_event_out_detailed"
+    	android:visibility="invisible"
+		/>
+所以detailed本身就是不可见的，为什么还会出现handcent sms这个bug呢，confusing.
+
+不管了，先看一下是如何禁止点击的。
+mLockscreenView.setWidgetMoveable(type, data.hasContent);
+
+adb logcat -s WidgetSlatPanel LockscreenView LockscreenManager
+
+每次handcent拦截到一个短信后，就会自动解锁，一解锁，就会销毁LockscreenView。用handcent回复完短信后，就又会重新生成LockscreenView.
+moveable就是 hasContent
+
+handcent 接收到一条短信自动解锁后，不回复，直接锁屏。
+D/LockscreenView(  188): $$$$$$$$$$$$$$$$$$$$ setWidgetMoveable,pos: 1moveable: true
+
+handcent 接收到一条短信自动解锁后，回复，被动锁屏。
+D/LockscreenView(  188): $$$$$$$$$$$$$$$$$$$$ setWidgetMoveable,pos: 1moveable: true
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 3,type2: 6
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 3,type2: 6
+D/LockscreenView(  188): $$$$$$$$$$$$$$$$$$$$ setWidgetMoveable,pos: 1moveable: true
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 3,type2: 6
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 3,type2: 6
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 3,type2: 6
+D/LockscreenView(  188): $$$$$$$$$$$$$$$$$$$$ setWidgetMoveable,pos: 1moveable: false
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 6,type2: 6
+D/LockscreenView(  188): $$$$$$$$$$$$$$$$$$$$ setWidgetMoveable,pos: 1moveable: false
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 6,type2: 6
+D/LockscreenView(  188): $$$$$$$$$$$$$$$$$$$$ setWidgetMoveable,pos: 1moveable: false
+D/WidgetSlatPanel(  188): ============== invalidateWidgetSlat type1: 6,type2: 6
+D/LockscreenView(  188): $$$$$$$$$$$$$$$$$$$$ setWidgetMoveable,pos: 1moveable: false
+
+可见是先发送hasContent为true,然后又发送hasContent为false
+
+所以现在的猜测是这样的，当handcent收到一条短信后，数据库发生了变化，本来要通知Lockscreen做一些操作的，但是因为handcent直接解锁，造成LockscreenView
+destroy了，所以没来得及收到这个事件(event1)。当handcent回复后，自动锁屏，这时候数据库又从未读变成了已读，所以又会产生一个（或一系列）事件(event2),所以当重新
+锁屏的时候，会一下子收到这两个事件，从而造成程序出现问题。
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+当在待机模式下，接到一个未解来电，执行seq_handcent_sms图显示的流程，
+
+adb logcat -s LockscreenService EventLSWidgetClient EventLSWidgetService LSWidgetService LSWidgetManager
+
+
+
+
+**************************************************************************************************************************
+【andriod4.0移植】
+在 4.0上移植的时候，发现只要修改了framework/base/policy里的LockpatternKeyguardView.java这个类，在这个类里打上patch以后，
+模拟器就启动不起来，或者即使偶尔启动起来，也特别卡。
+
+后来听说是因为dex优化的原因，要修改 davlik/vm/analysis/DexPrepare.cpp
+中的第1328行，将
+goto bail
+这行注释掉。
+但是这样做，重新编译完后，linux上启动模拟器还是特别慢。后来解决办法是在linux上编译出system.img，然后再把system.img放到
+windows的sdk下，在windows启动模拟器的时候速度会比较正常。
+
+但是接着来的问题是在android4.0中，在ExtLockscreenLoader.java中，有一处发生了变化，之前是：
+public void onPhoneStateChanged(String arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+而android4.0上，该系统接口变成了
+public void onPhoneStateChanged(int arg0) { 
+		// TODO Auto-generated method stub
+		
+	}
+
+不只要在framework里改，而且因为在Lockscreen项目中的LSM.jar里到了ExtLockscreenLoader这个类，所以要为android4.0单独做一个LSM.jar
+，这样的话Lockscreen项目就就也有两套代码（同Lockscreen_service）
+
+用jar包打包LSM.jar文件，进入到LSM目录里，执行
+jar cvfm LSM.jar META-INF/MANIFEST.MF -C . .（jar -help）
+
+
+
+
+【Lockscreen squashed up AND No space to unlock】
+解锁图标有时候就不见了，这是什么原因？
+
+发现无论对于系统自带的锁屏界面LockScreen，还是 Orange自定义的ExtLockScreen都实现了方法：onConfigurationChanged
+一旦横屏竖屏发生变化的时候，会调用该方法，
+
+ protected void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (LockPatternKeyguardView.DEBUG_CONFIGURATION) {
+            Log.w(TAG, "***** LOCK CONFIG CHANGING", new RuntimeException());
+            Log.v(TAG, "Cur orient=" + mCreationOrientation
+                    + ", new config=" + newConfig);
+        }
+        updateConfiguration();
+    }
+
+ void updateConfiguration() {
+        Configuration newConfig = getResources().getConfiguration();
+        if (newConfig.orientation != mCreationOrientation) {
+            mCallback.recreateMe(newConfig);
+        } else if (newConfig.hardKeyboardHidden != mKeyboardHidden) {
+            mKeyboardHidden = newConfig.hardKeyboardHidden;
+            final boolean isKeyboardOpen = mKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO;
+            if (mUpdateMonitor.isKeyguardBypassEnabled() && isKeyboardOpen) {
+                mCallback.goToUnlockScreen();
+            }
+        }
+    }
+
+在这里 mCallback.recreateMe(newConfig);在LockPatteryKeyguardView里：
+
+  public void recreateMe(Configuration config) {
+                mConfiguration = config;
+                recreateScreens();
+  }
+
+recreateScreens()调用了createScreens()，在系统LockScreen构造方法里，有对当前是竖屏还是横屏的判断：
+
+ if (mCreationOrientation != Configuration.ORIENTATION_LANDSCAPE) {
+            inflater.inflate(R.layout.keyguard_screen_tab_unlock, this, true);
+        } else {
+            inflater.inflate(R.layout.keyguard_screen_tab_unlock_land, this, true);
+        }
+
+这样系统就保证了无论在竖屏，还是横屏下，都能显示正常。但是在LockScreenView的构造函数里，并没有针对竖屏还是横屏的判断。Orange
+Lockscreen中的LockscreenView不是加载配置文件，而是在代码中拼凑的。
+
+
+
+************************************************************************************************************
+分析一下Lockscreen里如何控制view是否可点击的。如TimeDateView就不可点击。
+
+TimeDateView的资源文件：layout_view_timedate.xml
+
+public interface Slat_Type {
+		int	TYPE_MOVABLE			= 1;
+		int	TYPE_UNLOCK				= 2;
+		int	TYPE_MOVABLE_UNLOCK		= 3;
+		int	TYPE_FIXED				= 4;
+		int	TYPE_FIXED_NO_CONTENT	= 6;
+	}
+
+在SlatHashMap的init方法中，指定了这四个widget的Slat_Type:
+
+switch (i) {
+			case 0:
+				info.mSlatType = TYPE_FIXED;
+				break;
+			case 1:
+			case 2:
+				info.mSlatType = TYPE_FIXED_NO_CONTENT;
+				break;
+			case 3:
+				info.mHeight = screenHeight - i * height;
+				info.mSlatType = TYPE_UNLOCK;
+				break;
+			default:
+				break;
+			}
+
+可见TimeDateView是TYPE_FIXED，事件和音乐的初始化是TYPE_FIXED_NO_CONTENT，解锁的是TYPE_UNLOCK，这些Slat_Type信息都放在
+SlatInfo里边：
+
+static class SlatInfo implements Slat_Type {
+		int	mSlatType	= TYPE_FIXED;
+		int	mHeight		= 0;
+}
+
+也就是说，初始化的时候,music 和 event panel 都是TYPE_FIXED_NO_CONTENT;那么什么时候这两个panel会发生变化的呢？在LockscreenView
+的setWidgetMoveable方法里：
+
+void setWidgetMoveable(int type, boolean moveable) {
+		int pos = SlatHashMap.getPosByWidgetViewType(type);
+		if (pos > -1 && pos < 4) {
+			if (moveable) {
+				if (type == TYPE_EVENT) {
+					SlatHashMap.setSlatType(pos, TYPE_MOVABLE_UNLOCK);
+				}
+				if (type == TYPE_MUSIC) {
+					SlatHashMap.setSlatType(pos, TYPE_MOVABLE);
+				}
+			} else {
+				SlatHashMap.setSlatType(pos, TYPE_FIXED_NO_CONTENT);
+			}
+
+			if (null != mWidgetLayer) {
+				mWidgetLayer.invalidateWidgetSlat(pos);
+			}
+		}
+	}
+
+这里可以把event panel 的 slatType设置成TYPE_MOVABLE_UNLOCK，把music的slatType设置成TYPE_MOVABLE,而这个setWidgetMoveable方法
+又会被方法addLSWidgetView()和方法updateLSWidgetView()方法调用
+
+mCoverLayer.setImageResource(R.drawable.slat_mask_dimmed);
+mCoverLayer.setVisibility(VISIBLE);
+
+mCoverLayer就是盖上的稍微有点黑色的一层。
+
+【解锁圆圈动画提示】
+
+分析一下点击的时候，出现两个圆圈，这两个圆圈的视图层次结构是：他们的父view是CircleSlat，CircleSlat的父view是SwipePanel，
+SwipePanel的父view是LockscreenView中的mRootLayout：
+
+LockscreenView中：
+
+mSwipeLayer = new SwipePanel(context);
+mSwipeLayer.init(mHandler);
+rootLayout.addView(mSwipeLayer);
+
+
+此外还有：
+
+// init the 4th layer
+		mTaplayer = new TapPanel(context);
+		mTaplayer.init(mHandler);
+		rootLayout.addView(mTaplayer);
+
+		// init the 5th layer
+		mTipLayer = new TipSlatPanel(context);
+		mTipLayer.init(mHandler);
+		rootLayout.addView(mTipLayer);
+
+
+TapPanel和SwipePanel的子view挺像，都有CircleSlat
+
+TipSlatPanel的子view是TextView。
+
+这些view的响应手势入口是SliderSlatPanel类中的onTouchEvent，根据LockscreenView中的添加子view的代码来看：
+
+// init the 2nd layer
+		mSliderLayer = new SliderSlatPanel(context);
+		mSliderLayer.init(mHandler);
+		rootLayout.addView(mSliderLayer);
+		mSliderLayer.setWidgetLayer(mWidgetLayer);
+
+
+SliderSlatPanel是第二层，全局搜索了一下onTouchEvent，发现就两个，其中一个是在LSGestureDetector中，LSGestureDetector类中的
+onTouchEvent也还是被SliderSlatPanel调用的。
+
+
+
+
+
+********************************************************************2012-02-01********************************************************************
+
+mNextAlarm = Settings.System.getString(getContext()
+				.getContentResolver(), Settings.System.NEXT_ALARM_FORMATTED);
+		LogHelper.d(TAG, "################### mNextAlarm == null ? " + (null == mNextAlarm)
+				+ ",mNextAlarm: " + mNextAlarm);
+
+
+
+报了一个关于NullPointerException的异常，mNextAlarm 什么时候会为null呢？发现在settings.db的system表里有：
+
+让mNextAlarm为null的步骤是：
+1：新建一个闹钟
+2：删除81|next_alarm_formatted|Thu 4:09 这条记录
+
+
+
+
+主力发动一次行情的全过程:
+
+1:主力发动行情时间周期，最少为10个交易日，10个交易日内，可大胆低吸。这时候如果不敢低吸，也千万不能丢掉筹码，否则出于心理
+波动，很有可能会在最后主力出货阶段坚定做多，从而将自己套在高位。莱宝高科，北巴传媒，锌业股份都是如此。
+
+2：行情启动初期，万不可持有超过2只股票，否则根本没有经历在上面做高抛低吸的经历，受到心理影响，很容易一下子卖出多只股票。
+10月底和1月初的这两波行情自己犯的都是这个错误，都是一下子卖出了多只股票。
+
+2：财不入急门。这次的600259，自己是赚到了钱，但是一天内就将货全部出掉，没有拉开时间。千万不要急，忍字头上一把刀！
+
+
+
+
+
+
+
+
+
+
+*******************************************************反编译***********************************************************
+
+dex2jar和JD-GUI
+
+
+
+
+*******************************************************事件点击模拟***********************************************************
+
+
+【向android手机发送单击事件的分析过程】
+
+monkey虽然可以模拟点击事件，但是是漫无目的，如果只需要多次模拟单击事件，步骤如下：
+
+1：先查看 android中各事件对应的端口：
+adb shell进去，执行
+
+cat /proc/bus/input/devices
+
+对于intel，可以看到
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="gpio-keys"
+P: Phys=gpio-keys/input0
+S: Sysfs=/devices/platform/gpio-keys/input/input0
+U: Uniq=
+H: Handlers=kbd event0
+B: EV=100003
+B: KEY=10000 0 0 0 0 0 0 0 0 0 100000 0 0 c0000 0 0 0
+
+I: Bus=0018 Vendor=0000 Product=0000 Version=0000
+N: Name="accel"
+P: Phys=
+S: Sysfs=/devices/pci0000:00/0000:00:03.4/i2c-5/5-0018/input/input1
+U: Uniq=
+H: Handlers=event1
+B: EV=5
+B: REL=7
+
+I: Bus=0018 Vendor=0000 Product=0000 Version=0000
+N: Name="hmc5883"
+P: Phys=
+S: Sysfs=/devices/virtual/input/input2
+U: Uniq=
+H: Handlers=event2
+B: EV=5
+B: REL=7
+
+I: Bus=0000 Vendor=0000 Product=0000 Version=0000
+N: Name="msic_power_btn"
+P: Phys=power-button/input0
+S: Sysfs=/devices/platform/msic_power_btn.67/input/input4
+U: Uniq=
+H: Handlers=kbd event3
+B: EV=3
+B: KEY=100000 0 0 0
+
+I: Bus=0000 Vendor=0000 Product=0000 Version=0000
+N: Name="medfield_audio Intel MID Audio Jack"
+P: Phys=ALSA
+S: Sysfs=/devices/platform/msic_audio.19/sound/card3/input5
+U: Uniq=
+H: Handlers=event4
+B: EV=23
+B: KEY=1 0 0 0 0 0 0 0 0
+B: SW=14
+
+I: Bus=0018 Vendor=0000 Product=0000 Version=0000
+N: Name="mxt224_touchscreen_0"
+P: Phys=0-004a/input0
+S: Sysfs=/devices/pci0000:00/0000:00:00.3/i2c-0/0-004a/input/input6
+U: Uniq=
+H: Handlers=event5
+B: EV=9
+B: ABS=2610000 0
+
+I: Bus=0000 Vendor=0000 Product=0000 Version=0000
+N: Name="mxt224_key_0"
+P: Phys=0-004a/input1
+S: Sysfs=/devices/virtual/input/input7
+U: Uniq=
+H: Handlers=kbd event6
+B: EV=3
+B: KEY=2000000 0 40000800 40 0 0 0
+
+
+2：可以看到touchscreen对应的是H: Handlers=event5。这一步就是看单击事件对应的系统value值是多少，
+执行命令：
+
+adb shell getevent /dev/input/event5
+
+这是一个阻塞函数，然后在点击，就可以在cmd看到16进制的系统命令值，例如单击事件的系统value值就是：
+
+0003 0039 00000000
+0003 0030 00000001
+0003 0035 00000279
+0003 0036 00000399
+0000 0002 00000000
+0000 0000 00000000
+0000 0002 00000000
+0000 0000 00000000
+
+3：将这些16进制转换成对应的10进制值，然后就可以向手机发送单击命令了：
+
+
+adb shell sendevent /dev/input/event5 3 57 0 
+adb shell sendevent /dev/input/event5 3 48 1 
+adb shell sendevent /dev/input/event5 3 53 633 
+adb shell sendevent /dev/input/event5 3 54 921
+adb shell sendevent /dev/input/event5 0 2 0
+adb shell sendevent /dev/input/event5 0 0 0
+adb shell sendevent /dev/input/event5 0 2 0
+adb shell sendevent /dev/input/event5 0 0 0
+
+
+
+【向android手机发送电源键事件的分析过程】
+
+1：查看得知，
+
+I: Bus=0000 Vendor=0000 Product=0000 Version=0000
+N: Name="msic_power_btn"
+P: Phys=power-button/input0
+S: Sysfs=/devices/platform/msic_power_btn.67/input/input4
+U: Uniq=
+H: Handlers=kbd event3
+B: EV=3
+B: KEY=100000 0 0 0
+
+2：
+
+adb shell getevent /dev/input/kdb event3 错误，应该是执行adb shell getevent /dev/input/event3
+
+0001 0074 00000001
+0000 0000 00000000
+0001 0074 00000000
+0000 0000 00000000
+
+3：
+转换
+
+adb shell sendevent /dev/input/event3 1 116 1 
+adb shell sendevent /dev/input/event3 0 0 0 
+adb shell sendevent /dev/input/event3 1 116 1
+adb shell sendevent /dev/input/event3 0 0 0
+
+

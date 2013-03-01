@@ -1,0 +1,161 @@
+【现象描述】
+
+在Sony Errisson的一个手机上，发现了一个bug，是browser menu被截断了，如图
+pics/browser_menu_bug.png所示.
+
+【问题猜测及分析】
+
+找到布局文件browser_menu.xml，发现内容如下：
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical" android:background="?android:windowBackground">
+
+    <com.orange.browser.Carousel
+        android:id="@+id/carousel"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_marginTop="10dp" android:layout_marginBottom="13dp"/>
+
+    <com.orange.browser.MenuIndicator
+        android:id="@+id/menu_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="2px"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp" />
+
+</LinearLayout>
+
+
+首先怀疑是不是android:layout_marginBottom="13dp"中的13dp太少了呢，改成93试试。结果如图
+pics/browser_menu_increase_marginBottom.png，可见仍是不正确的。
+
+分析一下不正确的原因：
+android:layout_marginBottom="13dp"是指com.orange.browser.Carousel距离父view底部的值，
+该成93，只是离父view底部更远而已。
+
+这个bug真正原因应该是com.orange.browser.Carousel的子view的高度比120dp高，改成123dp应该就可以正常显示了。
+
+【解决方案一】
+
+将android:layout_height="120dp"改成android:layout_height="123dp"
+
+实验一下，效果如图pics/browser_menu_increase_parentHeight_by_hardcord.png所示。这时候可以
+解决这个bug了。
+
+【解决方案优缺点深入分析】
+
+这个方案不是最好的方案。因为这样写的增加到123dp，完全是凭猜测的，以后就不一定能
+猜测这么准确。那怎样不用猜测，怎样根据com.orange.browser.Carousel的子view的高度来决定自己到底
+应该是120dp，还是123dp,还是129dp呢？
+
+第一反应想到的就是修改com.orange.browser.Carousel的属性，将android:layout_height="120dp"改为
+android:layout_height="wrap_content"，但是这样行不行呢？试验一下。效果如图
+pics/browser_menu_setHeightToWrapContentOnlyInXml.png所示，browser变成全屏了？怎么会这样呢？
+设置成wrap_content，而不是match_parent，怎么会是全屏了呢？
+
+这个要从Carousel类的onMeasure()方法说起，该方法内容如下：
+
+//Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec)
+    {
+        //Log.d("CAROUSEL", "onMeasure");
+
+        final int width = MeasureSpec.getSize(widthMeasureSpec);
+        final int height = MeasureSpec.getSize(heightMeasureSpec);
+        setMeasuredDimension(width, height);
+
+        int count = getChildCount();
+        for (int i = 0; i < count; ++i)
+        {
+            final android.view.View child = super.getChildAt(i);
+            if (child != null)
+                child.measure(widthMeasureSpec, heightMeasureSpec);
+        }
+    }
+    
+【debug 一：android:layout_height="wrap_content" 】
+    
+设置debug,跟踪调试程序，看看变量都是些什么值，debug时候，关键变量值如图
+pics/browser_menu_measure_cause_fullscreen_debug_vars.png所示，可以看到Carousel的height的值是781，而
+这时候子view 的高度为189(如图pics/browser_menu_measure_cause_fullscreen_child_measureHeight_debug_vars.png所示)
+
+分析得出结论，这时候andriod系统在meause类com.orange.browser.Carousel的时候，默认的高度是设置成了781
+而子view view menu_page_1 的高度是189px，这时候虽然没有截断那个bug了。，但也不是我们所希望的。但是这时候就会有疑问，为什么
+将Carousel的高度设成120dp的时候，其子view会被截断一部分呢？
+
+【debug 二：android:layout_height="120dp" 】
+
+关键变量值如图pics/browser_menu_measure_120dp_debug_vars.png所示,可以看到这时Carousel的height
+
+值是180px(120dp * 1.5);这时候子view menu_page_1的高度是 180px,如图pics/browser_menu_measure_120dp_child_measureHeight_debug_vars.png
+
+这时为什么子view menu_page_1的高度不是189px,而是180px呢？在debug 一的时候，这两个值分别是180px,781px.
+猜测android系统可能是这样来处理的，当你指定父view高度的时候(如120dp),则子view最多就是120dp！！！所以这里
+才会有被截断的bug；但是当你指定父view为wrap_content的时候，虽然这时候子view是189px了。那怎么样才能既
+让子view menu_page_1 是189px，而父view 又不是全屏呢？经过同事指点，找出最佳解决方案！
+
+【解决方案二】
+
+一：修改browser_menu.xml如下：
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical" android:background="?android:windowBackground">
+
+    <com.orange.browser.Carousel
+        android:id="@+id/carousel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:layout_marginBottom="13dp"/>
+
+    <com.orange.browser.MenuIndicator
+        android:id="@+id/menu_indicator"
+        android:layout_width="match_parent"
+        android:layout_height="2px"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp" />
+
+</LinearLayout>
+
+这时候可见com.orange.browser.Carousel的高度必须不是硬编码的，而是wrap_content.
+
+二：
+
+修改com.orange.browser.Carousel类的onMeasure()方法如下：
+
+ protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec)
+    {
+    	//Log.d("CAROUSEL", "onMeasure");
+
+    	final int width = MeasureSpec.getSize(widthMeasureSpec);
+//        final int height = MeasureSpec.getSize(heightMeasureSpec);
+//        setMeasuredDimension(width, height);
+
+        int count = getChildCount();
+        int maxHeight = 0;
+        for (int i = 0; i < count; ++i)
+        {
+            final android.view.View child = super.getChildAt(i);
+            if (child != null)
+            	child.measure(widthMeasureSpec, heightMeasureSpec);
+                int childHeight = child.getMeasuredHeight();
+                if(childHeight > maxHeight){
+                    maxHeight = childHeight;
+                }
+        }
+        setMeasuredDimension(width, maxHeight);
+    }
+    
+这时候debug 看一下，
+关键变量值如图pics/browser_menu_measure_right_debug_vars.png所示,可以看到这时Carousel的height
+
+值是189px(120dp * 1.5);这时候子view menu_page_1的高度是 189px,如图pics/browser_menu_measure_right_child_measureHeight_debug_vars.png
+这里父view Carousel 的高度是以子view 最大高度计算得来的。
+
+【总结】
+父view设成wrap_content以后，具体大小还要看onMeausre()方法是怎么实现的！！！

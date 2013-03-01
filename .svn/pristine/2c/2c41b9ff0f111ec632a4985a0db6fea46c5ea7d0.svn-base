@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="browser_settigns_style">
+        <item name="android:focusable">false</item>
+        <item name="android:textColor">#ff000000</item>
+        <item name="android:windowTitleSize">38dip</item>
+        <item name="android:windowBackground">@color/bookmark_background</item>
+        <item name="android:windowTitleBackgroundStyle">@style/CustomWindowTitleBackground</item>
+    </style>
+
+    <style name="BrowserTheme" parent="@android:Theme.Black">
+        <item name="android:windowBackground">@color/white</item>
+        <item name="android:colorBackground">#FFFFFFFF</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <style name="Widget">
+        <item name="android:textAppearance">?android:attr/textAppearance</item>
+    </style>
+
+    <style name="Widget.EditText">
+        <item name="android:focusable">true</item>
+        <item name="android:focusableInTouchMode">true</item>
+        <item name="android:clickable">true</item>
+        <!-- <item name="android:background">?android:attr/editTextBackground</item> -->
+
+        <item name="android:textAppearance">?android:attr/textAppearanceMediumInverse</item>
+        <!-- <item name="android:textColor">?android:attr/editTextColor</item> -->
+        <item name="android:gravity">center_vertical</item>
+    </style>
+
+    <style name="Widget.AutoCompleteTextView" parent="Widget.EditText">
+
+        <!-- <item name="android:completionHintView">@android:layout/simple_dropdown_hint</item> -->
+        <item name="android:completionThreshold">2</item>
+        <item name="android:dropDownSelector">@android:drawable/list_selector_background</item>
+        <item name="android:popupBackground">@android:drawable/spinner_dropdown_background</item>
+        <item name="android:dropDownVerticalOffset">-6dip</item>
+        <item name="android:dropDownHorizontalOffset">0dip</item>
+        <item name="android:dropDownWidth">wrap_content</item>
+    </style>
+
+    <style name="Widget.Holo.AutoCompleteTextView" parent="Widget.AutoCompleteTextView">
+        <!--
+        <item name="android:dropDownSelector">@android:drawable/list_selector_holo_dark</item>
+        <item name="android:popupBackground">@android:drawable/menu_dropdown_panel_holo_dark</item>
+        -->
+    </style>
+
+    <style name="Suggestions" parent="Widget.Holo.AutoCompleteTextView">
+        <item name="android:popupBackground">#D0000000</item>
+        <item name="android:dropDownVerticalOffset">0dip</item>
+    </style>
+
+    <style name="Default" parent="@style/NoTitleBar">
+        <item name="android:windowNoTitle">false</item>
+    </style>
+
+    <style name="NoTitleBar" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:textColorPrimaryInverse">@color/browser_setting_summary</item>
+        <item name="android:windowBackground">@color/bookmark_background</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTitleSize">38dip</item>
+        <item name="android:windowTitleStyle">@style/CustomWindowTitleText</item>
+        <item name="android:windowTitleBackgroundStyle">@style/CustomWindowTitleBackground</item>
+    </style>
+
+    <style name="CustomWindowTitleText">
+        <item name="android:textSize">20dip</item>
+        <item name="android:textColor">#FFffffff</item>
+        <item name="android:paddingLeft">10dp</item>
+    </style>
+
+    <style name="CustomWindowTitleBackground">
+        <item name="android:background">@color/gray</item>
+    </style>
+
+    <style name="MenuTextView">
+        <item name="android:clickable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">@drawable/menu_text_color</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:singleLine">true</item>
+    </style>
+    
+    <style name="mydialog">
+        <item name="android:windowFrame">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@drawable/panel_background</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowSoftInputMode">stateUnspecified|adjustPan</item>
+    </style>
+    
+    <style name="BrowserActionBarNameText">
+        <item name="android:gravity">center</item>
+        <item name="android:textAppearance">?android:textAppearanceLarge</item>
+        <item name="android:textSize">@dimen/browser_action_bar_text_size</item>
+    </style>
+
+</resources>

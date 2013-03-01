@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        >
+
+    <PreferenceCategory
+            android:title="preferenceCategory"
+            >  
+
+
+        <ListPreference
+                android:key="text_size"
+                android:title="@string/pref_text_size"
+                android:defaultValue="NORMAL"
+                android:entries="@array/pref_text_size_choices"
+                android:entryValues="@array/pref_text_size_values"
+                android:dialogTitle="@string/pref_text_size_dialogtitle" />
+
+        <ListPreference
+                android:key="default_zoom"
+                android:title="@string/pref_default_zoom"
+                android:defaultValue="MEDIUM"
+                android:entries="@array/pref_default_zoom_choices"
+                android:entryValues="@array/pref_default_zoom_values"
+                android:dialogTitle="@string/pref_default_zoom_dialogtitle" />
+
+        <CheckBoxPreference
+                android:key="load_page"
+                android:defaultValue="true"
+                android:title="@string/pref_content_load_page"
+                android:summary="@string/pref_content_load_page_summary"
+                />
+        
+        
+    </PreferenceCategory>
+    
+
+</PreferenceScreen>

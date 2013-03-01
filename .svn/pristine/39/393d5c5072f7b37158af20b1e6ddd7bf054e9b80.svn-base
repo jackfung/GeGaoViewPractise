@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AbsoluteLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget38"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent" >
+
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/widget32"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_x="0px"
+        android:layout_y="0px" >
+    </LinearLayout>
+
+    <ScrollView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/sv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_x="0px"
+        android:layout_y="20px" >
+
+        <TextView
+            android:id="@+id/txtView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="hello,user!"
+            android:textSize="20sp" >
+        </TextView>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/test"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_x="230px"
+        android:layout_y="2px"
+        android:text="Button" >
+    </Button>
+
+</AbsoluteLayout>

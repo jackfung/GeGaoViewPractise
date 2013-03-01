@@ -1,0 +1,6 @@
+package com.gaoge.view.practise.json.whitelist.json;
+
+
+public class JSonWhiteListObject extends JSonListObject{
+
+}

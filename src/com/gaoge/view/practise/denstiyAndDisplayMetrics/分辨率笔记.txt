@@ -1,0 +1,31 @@
+1:main中指定
+
+<com.orange.test.textImage.HelloView
+android:layout_width="50dp"
+android:layout_height="120dp"
+/>
+
+【分辨率实验】 
+a:
+在nexus 上运行，调用HelloView getWidth()和getHeight()的 width: 75,height: 180。
+分别是xml中定义的值的1.5倍。
+
+DisplayMetrics dm = new DisplayMetrics(); 
+getWindowManager().getDefaultDisplay().getMetrics(dm); 
+Log.d("metric", "widthPixels: " + dm.widthPixels + ",heightPixels: " + dm.heightPixels + dm.density);
+
+结果：widthPixels: 480,heightPixels: 800,dm.density: 1.5
+
+
+b:
+在LG大屏说给上运行，调用HelloView getWidth()和getHeight()的 width: 75,height: 180。
+分别是xml中定义的值的1.5倍。
+
+DisplayMetrics dm = new DisplayMetrics(); 
+getWindowManager().getDefaultDisplay().getMetrics(dm); 
+Log.d("metric", "widthPixels: " + dm.widthPixels + ",heightPixels: " + dm.heightPixels + dm.density);
+
+结果：widthPixels: 480,heightPixels: 800,dm.density: 1.5
+
+【结论】：发现代码中getHeight()和getWidth()得到的都是像素值，而在xml中定义*dp的时候，并不是指定该
+view有多少个像素，具体有多少个像素，要通过*dp乘以dm.density的值才能得到。

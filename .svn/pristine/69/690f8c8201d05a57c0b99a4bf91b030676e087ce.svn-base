@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!-- Copyright (C) 2007 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+  
+          http://www.apache.org/licenses/LICENSE-2.0
+  
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- The name of the application. -->
+    <string name="help_start_efficient_read">点击这里，开始你的\n高效浏览之旅吧~</string>
+	<string name="help_fullscreen">从上边缘下拉出\n地址栏和工具栏</string>
+	<string name="help_select_articles">选择所有想看的链接，\n他们会被保存到本地，\n可以离线阅读~</string>
+	<string name="help_select_articles_light">点击%1$s开始阅读，选择\n的链接也会保存到阅读\n列表，方便以后再看~</string>
+	<string name="help_select_first_link">%1$s点击一个您想看的链接</string>
+    <string name="help_select_second_link">恭喜您，正在下载这篇文章，再点一个链接试试</string>
+    <string name="help_select_link_start_read">太棒了，正在下载这两篇文章，现在点击台灯开始阅读吧</string>
+</resources>

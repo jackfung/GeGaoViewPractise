@@ -1,0 +1,112 @@
+
+package com.gaoge.view.practise.blackwhitelist.operation;
+
+import android.content.Context;
+
+import com.dailystudio.development.Logger;
+import com.gaoge.view.practise.blackwhitelist.databaseObject.ListObject;
+import com.gaoge.view.practise.utils.LogHelper;
+
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+
+/**
+ * static factory method
+ * 
+ * @author Admin
+ */
+public class WhiteBlackList {
+    public static final int TYPE_WHITE = 1;
+    public static final int TYPE_BLACK = 2;
+
+    private static WhiteBlackList mWhiteList = new WhiteBlackList(TYPE_WHITE);
+    private static WhiteBlackList mBlackList = new WhiteBlackList(TYPE_BLACK);
+
+    protected AbsList<ListObject> mInclusionList;
+    protected AbsList<ListObject> mExclusionList;
+
+    private WhiteBlackList(int type) {
+        if (TYPE_WHITE == type) {
+            mInclusionList = new InclusionWhiteList();
+            mExclusionList = new ExclusionWhiteList();
+        } else if (TYPE_BLACK == type) {
+            mInclusionList = new InclusionBlackList();
+            mExclusionList = new ExclusionBlackList();
+        }
+    }
+
+    public static WhiteBlackList getWhiteList() {
+        return mWhiteList;
+    }
+
+    public static WhiteBlackList getBlackList() {
+        return mBlackList;
+    }
+
+    public boolean isInList(Context context, String urlString) {
+        URL url = null;
+
+        try {
+            url = new URL(urlString);
+        } catch (MalformedURLException e) {
+            Logger.warnning("string to URL failure: %s",
+                    e.toString());
+            url = null;
+        }
+
+        if (url == null) {
+            return false;
+        }
+
+        return isInList(context, url);
+    }
+
+    public boolean isInList(Context context, URL url) {
+        if (context == null || url == null) {
+            return false;
+        }
+        if (mInclusionList == null || mExclusionList == null) {
+            return false;
+        }
+        if (mInclusionList.contains(context, url) && !mExclusionList.contains(context, url)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public void saveBlackWhiteListToDatabase(Context context) {
+        if (!inclusionDataBaseFileExist(context)) {
+            mInclusionList.saveBlackWhiteListToDatabase(context);
+        }
+        if (!exclusionDataBaseFileExist(context)) {
+            mExclusionList.saveBlackWhiteListToDatabase(context);
+        }
+    }
+
+    private boolean exclusionDataBaseFileExist(Context context) {
+        StringBuilder builder = new StringBuilder();
+        String dir = getDatabasePath(context, builder)
+                .append(mExclusionList.getListObjectClass().getName())
+                .append(".db")
+                .toString();
+        File file = new File(dir);
+        return file.exists();
+    }
+
+    private StringBuilder getDatabasePath(Context context, StringBuilder builder) {
+        return builder.append("/data/data/").append(context.getPackageName())
+                .append("/databases/");
+    }
+
+    private boolean inclusionDataBaseFileExist(Context context) {
+        StringBuilder builder = new StringBuilder();
+        String dir = getDatabasePath(context, builder)
+                .append(mInclusionList.getListObjectClass().getName())
+                .append(".db")
+                .toString();
+        File file = new File(dir);
+        return file.exists();
+    }
+}

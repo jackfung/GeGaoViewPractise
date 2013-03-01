@@ -1,0 +1,17 @@
+{
+	"list" : [
+	       {"match_type":"prefix","url_pattern":"http://www.qq.com"},
+	       {"match_type":"exactly","url_pattern":"http://www.baidu.com/"},
+	       {"match_type":"exactly","url_pattern":"http://www.google.com"},
+	       {"match_type":"exactly","url_pattern":"http://wap.sogou.com"},
+	       {"match_type":"exactly","url_pattern":"http://www.renren.com"},
+	       {"match_type":"prefix","url_pattern":"http://m.taobao.com"},
+	       {"match_type":"prefix","url_pattern":"http://3g.youku.com"},
+	       {"match_type":"prefix","url_pattern":"http://m.tudou.com"},
+	       {"match_type":"prefix","url_pattern":"http://m.joy.cn"},
+	       {"match_type":"prefix","url_pattern":"http://3g.56.com"},
+	       {"match_type":"exactly","url_pattern":"http://wap.bing.com/"},
+	       {"match_type":"prefix","url_pattern":"http://news.baidu.com"},
+	       {"match_type":"prefix","url_pattern":"http://3g.163.com/book"}
+	]
+}

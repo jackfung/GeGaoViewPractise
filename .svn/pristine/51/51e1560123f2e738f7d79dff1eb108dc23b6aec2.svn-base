@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 注意添加命名空间，该例中mobile可以任意取名，http://net.blogjava.mobile为代码中定义的命名空间的值 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:mobile="http://net.blogjava.mobile"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <!-- 注意添加的组件要把包名也写出来，mobile为空间名称，iconSrc是代码中定义的属性 -->
+
+
+
+    <com.gaoge.view.practise.IconTextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:textSize="20dp"
+        mobile:iconSrc="@drawable/bookmark_default" />
+    
+</LinearLayout>

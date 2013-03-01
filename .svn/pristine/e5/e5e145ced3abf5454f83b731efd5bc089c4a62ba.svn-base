@@ -1,0 +1,5 @@
+【Improving Layout Performance】
+1：<merge>标签，在<include>的时候，防止LinearLayout根元素重复
+2：<ViewStub>标签，只有在inflate或visible的时候才加载view
+
+

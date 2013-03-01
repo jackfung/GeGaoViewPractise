@@ -1,0 +1,71 @@
+
+package com.gaoge.view.practise.blackwhitelist.json;
+
+import android.content.Context;
+
+import com.dailystudio.development.Logger;
+import com.google.gson.Gson;
+
+import java.io.IOException;
+import java.io.InputStream;
+
+public class JSonWhiteBlackListParser {
+    private static final String BLACK_FILE = "multi_select_black_list.json";
+    private static final String WHITE_FILE = "multi_select_white_list.json";
+    private String mFileName;
+    
+    private static JSonWhiteBlackListParser sWhiteParser = new JSonWhiteBlackListParser(
+            WHITE_FILE);
+    private static JSonWhiteBlackListParser sBlackParser = new JSonWhiteBlackListParser(
+            BLACK_FILE);
+    
+
+    private JSonWhiteBlackListParser(String jsonFile) {
+        mFileName = jsonFile;
+    }
+
+    public static JSonWhiteBlackListParser getWhiteListParser() {
+        return sWhiteParser;
+    }
+
+    public static JSonWhiteBlackListParser getBlackListParser() {
+        return sBlackParser;
+    }
+
+    public JSonList parseListFromFile(Context context) {
+        if (context == null) {
+            return null;
+        }
+
+        String fileContent = null;
+        try {
+            String fileRes = mFileName;
+            InputStream is = context.getAssets().open(fileRes);
+            byte[] buffer = new byte[is.available()];
+            while (is.read(buffer) != -1) {
+                ;
+            }
+            fileContent = new String(buffer);
+        } catch (IOException e) {
+            e.printStackTrace();
+            fileContent = null;
+        }
+
+        if (fileContent == null) {
+            return null;
+        }
+
+        Gson gson = new Gson();
+
+        JSonList jsonList = null;
+        try {
+            jsonList = gson.fromJson(fileContent, JSonList.class);
+        } catch (Exception e) {
+            Logger.warnning("parse white list failure: %s", e.toString());
+            jsonList = null;
+        }
+
+        return jsonList;
+    }
+
+}

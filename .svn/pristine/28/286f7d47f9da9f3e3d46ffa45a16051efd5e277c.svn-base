@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/rate_background"
+    android:orientation="vertical" >
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/rate_title"
+        android:textSize="20dp"
+        android:paddingLeft="18dp"
+        android:padding="10dp"
+        android:gravity="center"
+        android:textColor="@color/cygnus_focused" >
+    </TextView>
+
+    <ImageView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rate_blue" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/rate_content"
+        android:paddingLeft="15dp"
+        android:padding="20dp"
+        android:textSize="15dp"
+        android:textColor="?android:textColorPrimary" >
+    </TextView>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rate_gray" />
+
+    <TextView
+        android:id="@+id/rate_now"
+        android:clickable="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/rate_title"
+        android:padding="20dp"
+        android:gravity="center"
+        android:textColor="?android:textColorPrimary"
+        android:background="@drawable/context_menu_selector"
+        android:textSize="20dp">
+    </TextView>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rate_gray" />
+
+    <TextView
+        android:id="@+id/rate_later"
+        android:clickable="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/rate_later"
+        android:padding="20dp"
+        android:gravity="center"
+        android:textColor="?android:textColorPrimary"
+        android:background="@drawable/context_menu_selector"
+        android:textSize="20dp" >
+    </TextView>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rate_gray" />
+
+    <TextView
+        android:id="@+id/no_thanks"
+        android:clickable="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/context_menu_selector"
+        android:gravity="center"
+        android:text="@string/rate_no_thanks"
+        android:textColor="?android:textColorPrimary"
+        android:textSize="20dp"
+        android:padding="20dp"
+        >
+    </TextView>
+
+</LinearLayout>

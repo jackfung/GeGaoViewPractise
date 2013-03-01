@@ -1,0 +1,48 @@
+
+package com.gaoge.view.practise.blackwhitelist.operation;
+
+import android.content.Context;
+
+import com.dailystudio.development.Logger;
+import com.gaoge.view.practise.blackwhitelist.databaseObject.ListObject;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+
+abstract class SiteList {
+
+    protected AbsList<ListObject> sInclusionList;
+    protected AbsList<ListObject> sExclusionList;
+
+    public boolean isInList(Context context, String urlString) {
+        init();
+        URL url = null;
+
+        try {
+            url = new URL(urlString);
+        } catch (MalformedURLException e) {
+            Logger.warnning("string to URL failure: %s",
+                    e.toString());
+            url = null;
+        }
+
+        if (url == null) {
+            return false;
+        }
+
+        return isInList(context, url);
+    }
+
+    public boolean isInList(Context context, URL url) {
+        if (context == null || url == null) {
+            return false;
+        }
+        if (sInclusionList.contains(context, url) && !sExclusionList.contains(context, url)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    abstract public void init();
+}

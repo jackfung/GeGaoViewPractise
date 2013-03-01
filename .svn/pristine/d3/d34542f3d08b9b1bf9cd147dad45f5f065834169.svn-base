@@ -1,0 +1,103 @@
+package com.gaoge.view.practise.provider;
+
+import android.app.Activity;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+
+import com.gaoge.view.practise.utils.LogHelper;
+import com.orange.test.textImage.R;
+
+public class TestProviderActivity extends Activity{
+    Button bt_insert;
+    Button bt_update;
+    Button bt_query;
+    Button bt_delete;
+    ContentResolver mContentResolver;
+    
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.test_provider);
+        mContentResolver = getContentResolver();
+        
+        mContentResolver.registerContentObserver(GaoGeProviderConstants.TABLE1_CONTENT_URI, true, new MyProviderContentObserver());
+        initControls();
+    }
+    
+    private void initControls() {
+        bt_insert = (Button)this.findViewById(R.id.bt_insert);
+        bt_update = (Button)this.findViewById(R.id.bt_update);
+        bt_query = (Button)this.findViewById(R.id.bt_query);
+        bt_delete = (Button)this.findViewById(R.id.bt_delete);
+        
+        bt_insert.setOnClickListener(new OnClickListener() {
+            
+            @Override
+            public void onClick(View v) {
+                insert();
+            }
+        });
+        
+        bt_update.setOnClickListener(new OnClickListener() {
+            
+            @Override
+            public void onClick(View v) {
+                update();
+            }
+        });
+        
+        bt_query.setOnClickListener(new OnClickListener() {
+            
+            @Override
+            public void onClick(View v) {
+                query();
+            }
+        });
+        
+        bt_delete.setOnClickListener(new OnClickListener() {
+            
+            @Override
+            public void onClick(View v) {
+                delete();
+            }
+        });
+    }
+    
+    private void insert(){
+        ContentValues values = new ContentValues();
+        values.put(GaoGeProviderConstants.Impl.COLUMN_DATA_1, "gaoge");
+        
+        mContentResolver.insert(GaoGeProviderConstants.TABLE1_CONTENT_URI, values);
+    }
+    
+    private void update(){
+        ContentValues values = new ContentValues();
+        values.put(GaoGeProviderConstants.Impl.COLUMN_DATA_1, "gaoge_change");
+        String where = GaoGeProviderConstants.Impl.COLUMN_DATA_1 + " = ? ";
+        String[] selectionArgs = new String[]{"gaoge"}; 
+        mContentResolver.update(GaoGeProviderConstants.TABLE1_CONTENT_URI, values, where, selectionArgs);
+    }
+    
+    private void query(){
+        
+       Cursor c =  mContentResolver.query(GaoGeProviderConstants.TABLE1_CONTENT_URI, 
+                GaoGeProviderConstants.PROJECTIONS, null, null, null);
+       
+       while(c.moveToNext()){
+           String id = c.getString(c.getColumnIndex(GaoGeProviderConstants.Impl._ID));
+           String data1 = c.getString(c.getColumnIndex(GaoGeProviderConstants.Impl.COLUMN_DATA_1));
+           LogHelper.d(LogHelper.TAG_PROVIDER, "@@@@@@@@@@@@@@ id: " + id + ",data1: " + data1);
+       }
+    }
+    
+    private void delete(){
+        
+        mContentResolver.delete(GaoGeProviderConstants.TABLE1_CONTENT_URI, null, null);
+    }
+}

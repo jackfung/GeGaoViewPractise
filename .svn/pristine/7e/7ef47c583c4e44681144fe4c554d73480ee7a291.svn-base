@@ -1,0 +1,64 @@
+
+package com.gaoge.view.practise.provider.object;
+
+import android.content.Context;
+
+import com.dailystudio.dataobject.Column;
+import com.dailystudio.dataobject.DatabaseObject;
+import com.dailystudio.dataobject.IntegerColumn;
+import com.dailystudio.dataobject.Template;
+import com.dailystudio.dataobject.TextColumn;
+
+public class UrlObject extends DatabaseObject {
+    
+    public static final Column COLUMN_ID = new IntegerColumn("_id", false, true);
+    public static final Column COLUMN_ITEM_TYPE = new TextColumn("item_type", false);
+    public static final Column COLUMN_URL_PATTERN = new TextColumn("url_pattern", false);
+    public static final Column COLUMN_URL_HOST = new TextColumn("url_host", false);
+
+    private final static Column[] sColumns = {
+        COLUMN_ID,
+        COLUMN_ITEM_TYPE,
+        COLUMN_URL_PATTERN,
+        COLUMN_URL_HOST
+    };
+
+
+    public UrlObject(Context context, String itemType,String urlPattern, String urlHost) {
+        super(context);
+
+        final Template templ = getTemplate();
+
+        templ.addColumns(sColumns);
+
+        setItemType(itemType);
+        setUrlPattern(urlPattern);
+        setUrlHost(urlHost);
+        
+    }
+
+    public void setItemType(String type) {
+        setValue(COLUMN_ITEM_TYPE, type);
+    }
+
+    public String getItemType() {
+        return getTextValue(COLUMN_ITEM_TYPE);
+    }
+    
+    public void setUrlPattern(String urlPattern) {
+        setValue(COLUMN_URL_PATTERN, urlPattern);
+    }
+
+    public String getUrlPattern() {
+        return getTextValue(COLUMN_URL_PATTERN);
+    }
+    
+    public void setUrlHost(String urlHost) {
+        setValue(COLUMN_URL_HOST, urlHost);
+    }
+
+    public String getUrlHost() {
+        return getTextValue(COLUMN_URL_HOST);
+    }
+
+}

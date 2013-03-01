@@ -1,0 +1,5 @@
+【svn去除bin gen目录】
+
+步骤：
+1：svn服务器端删除bin gen目录
+2:本地->Team->添加至 svn:ignore

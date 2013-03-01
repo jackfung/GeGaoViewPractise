@@ -1,0 +1,23 @@
+测试类 TestHelpViewClickActivity
+
+对于help界面，两种情况：
+
+情况一：把帮助界面tip_fullscreen添加到this.getWindow().getDecorView().findViewById(android.R.id.content);
+情况二：把帮助界面tip_fullscreen添加到(WindowManager) this.getSystemService(Context.WINDOW_SERVICE);里
+
+对于第一种情况，如果tip_fullscreen内容中：
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/fullscreen_guide"
+    >
+    
+    如果没有设置android:clickable属性,或者android:clickable="false",则可以点击被帮助界面覆盖在下面的按钮;
+  而当android:clickable="true"的时候，不能点击被帮助界面覆盖住的按钮。
+  
+  
+  对于第二种情况，不管有没有设置android:clickable属性，都不能点击被帮助界面覆盖住的按钮。
+    
+    
+               

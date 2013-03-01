@@ -1,0 +1,91 @@
+package com.gaoge.view.practise.blackwhitelist;
+
+import android.app.Activity;
+import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager.NameNotFoundException;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.preference.PreferenceManager;
+
+import com.gaoge.view.practise.blackwhitelist.operation.WhiteBlackList;
+import com.gaoge.view.practise.utils.LogHelper;
+import com.orange.test.textImage.R;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+
+public class TestServerJson extends Activity {
+    
+    public static String BLACKLIST_VERSION = "black_version";
+    public static String WHITELIST_VERSION = "white_version";
+    public static String WHITELIST_TYPE= "multiselect_whitelist";
+    public static String BLACKLIST_TYPE= "multiselect_blacklist";
+    
+    private AsyncTask<String, Void, Void> mWhiteBlackListChecker = new AsyncTask<String, Void, Void>() {
+        @Override
+        protected Void doInBackground(String... urls) {
+            String whiteListContent = getBlackWhiteListContent(urls[0],WHITELIST_TYPE,WHITELIST_VERSION);
+            WhiteBlackList.getWhiteList().saveBlackWhiteListToDatabase(TestServerJson.this,whiteListContent);
+
+            String blackListContent = getBlackWhiteListContent(urls[0],BLACKLIST_TYPE,BLACKLIST_VERSION);
+            WhiteBlackList.getBlackList().saveBlackWhiteListToDatabase(TestServerJson.this,blackListContent);
+            
+            return null;
+        }
+
+        private String getBlackWhiteListContent(String url,String type,String versionKey) {
+            DefaultHttpClient client = new DefaultHttpClient();
+            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(TestServerJson.this);
+            int localVersionCode = sp.getInt(versionKey, 0);
+            
+            StringBuilder urlBuilder = new StringBuilder();
+            urlBuilder.append(url).append("?type=").append(type).append("&version=").append(localVersionCode);
+            HttpGet httpGet = new HttpGet(urlBuilder.toString());
+            try {
+                HttpResponse response = client.execute(httpGet);
+                if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+                    return null;
+                }
+                InputStream content = response.getEntity().getContent();
+
+                BufferedReader buffer = new BufferedReader(
+                        new InputStreamReader(content));
+                String s;
+                StringBuilder respStringBuilder = new StringBuilder();
+                while ((s = buffer.readLine()) != null) {
+                    respStringBuilder.append(s);
+                }
+                JSONObject respObject = new JSONObject(respStringBuilder.toString());
+                
+                int version = respObject.getInt("version");
+                sp.edit().putInt(versionKey,version).commit();
+                
+                LogHelper.d("json_server", "string from server: " + respStringBuilder.toString());
+                return respStringBuilder.toString();
+                
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+    };
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mWhiteBlackListChecker.execute(new String[] {
+                getString(R.string.blackwhiltelist_url)
+            });
+    }
+
+}

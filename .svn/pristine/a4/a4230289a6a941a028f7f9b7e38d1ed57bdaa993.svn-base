@@ -1,0 +1,31 @@
+package com.gaoge.view.practise.json.whitelist;
+
+
+
+import android.content.Context;
+
+import com.gaoge.view.practise.json.whitelist.json.JSonList;
+import com.gaoge.view.practise.json.whitelist.json.JSonListObject;
+
+class ExculsionBlackList extends AbsList<ListObject> {
+
+	@Override
+	public Class<? extends ListObject> getListObjectClass() {
+		return BlackListExclusiveObject.class;
+	}
+
+	@Override
+	public ListObject createListObject(Context context) {
+		return new BlackListExclusiveObject(context);
+	}
+
+	@Override
+	public JSonListObject[] pickJSonObjects(JSonList jsonWl) {
+		if (jsonWl == null) {
+			return null;
+		}
+		
+		return jsonWl.exclusion;
+	}
+
+}

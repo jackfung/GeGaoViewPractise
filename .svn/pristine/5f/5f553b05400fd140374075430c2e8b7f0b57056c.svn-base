@@ -1,0 +1,276 @@
+package com.gaoge.view.practise.json.whitelist;
+
+
+import android.content.Context;
+import android.support.v4.util.LruCache;
+
+import com.dailystudio.dataobject.DatabaseObject;
+import com.dailystudio.dataobject.database.DatabaseConnectivity;
+import com.dailystudio.dataobject.query.ExpressionToken;
+import com.dailystudio.dataobject.query.Query;
+import com.dailystudio.development.Logger;
+import com.gaoge.view.practise.json.whitelist.json.JSonList;
+import com.gaoge.view.practise.json.whitelist.json.JSonListObject;
+import com.gaoge.view.practise.json.whitelist.json.JSonListParser;
+import com.gaoge.view.practise.json.whitelist.json.JSonWhiteList;
+import com.gaoge.view.practise.json.whitelist.json.JSonWhiteListObject;
+import com.gaoge.view.practise.provider.Constants;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+
+abstract class AbsList<T extends ListObject> {
+	
+	public static final String MATCH_TYPE_EXACTLY = "exactly";
+	public static final String MATCH_TYPE_PREFIX = "prefix";
+	public static final String MATCH_TYPE_REGEX = "regex";
+
+	private final static int CACHE_SIZE = 50;
+
+	private LruCache<String, List<T>> sWhiteListCache =
+		 new LruCache<String, List<T>>(CACHE_SIZE);
+
+	public boolean contains(Context context, URL url) {
+		if (context == null || url == null) {
+			return false;
+		}
+		
+		List<T> woCandidates = null;
+		
+		final String host = url.getHost();
+		
+		woCandidates = findInMemory(host); 
+		
+		if (woCandidates == null) {
+			woCandidates = findInDatabase(context, host);
+
+			if (woCandidates != null) {
+				cachePrefixesInMemory(host, woCandidates);
+			}
+		}
+		
+		if (woCandidates == null) {
+			woCandidates = findInPredefinedFile(context, host);
+			
+			if (woCandidates != null) {
+				cachePrefixesInMemory(host, woCandidates);
+				cachePrefixesInDatabase(context, host, woCandidates);
+			}
+		}
+		
+		if (woCandidates != null) {
+			final String urlstr = url.toString();
+			if (urlstr == null) {
+				return false;
+			}
+			
+			for (T wlObject: woCandidates) {
+				if (matchUrl(wlObject, urlstr)) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	private boolean matchUrl(T wlObject, String url) {
+		if (wlObject == null || url == null) {
+			return false;
+		}
+		
+		final String matchType = wlObject.getMatchType();
+		final String urlPattern = wlObject.getUrlPattern();
+		if (matchType == null || urlPattern == null) {
+			return false;
+		}
+		
+		boolean ret = false;
+		if (MATCH_TYPE_EXACTLY.equals(matchType)) {
+			ret = url.equals(urlPattern);
+		} else if (MATCH_TYPE_PREFIX.equals(matchType)) {
+			ret = url.startsWith(urlPattern);
+		} else if (MATCH_TYPE_REGEX.equals(matchType)) {
+			ret = Pattern.matches(urlPattern, url);
+		}
+		
+		return ret;
+	}
+	
+	public List<T> findInMemory(String host) {
+		if (host == null) {
+			return null;
+		}
+		
+		List<T> woArray = null;
+    	synchronized (sWhiteListCache) {
+    		woArray = sWhiteListCache.get(host);
+		}
+    	
+//    	printCacheStatistics();
+    	
+    	return woArray;
+	}
+	
+    public void cachePrefixesInMemory(String host, List<T> woArray) {
+    	if (host == null || woArray == null) {
+    		return;
+    	}
+    	
+    	synchronized (sWhiteListCache) {
+    		sWhiteListCache.put(host, woArray);
+		}
+    }
+
+	
+	public List<T> findInDatabase(Context context, String host) {
+		if (context == null || host == null) {
+			return null;
+		}
+		
+		return queryPrefixInDatabase(context, host);
+	}
+	
+	@SuppressWarnings("unchecked")
+	private List<T> queryPrefixInDatabase(Context context, String host) {
+		if (context == null || host == null) {
+			return null;
+		}
+		
+ 		DatabaseConnectivity connectivity = 
+			new DatabaseConnectivity(context, 
+					Constants.BLACK_WHITE_LIST_DATABASE_AUTHORITY,
+					getListObjectClass());
+		
+		Query query = new Query(getListObjectClass());
+		
+		ExpressionToken selToken = 
+			WhiteListObject.COLUMN_HOST.eq(host);
+    	if (selToken == null) {
+    		return null;
+    	}
+		
+    	query.setSelection(selToken);
+    	
+    	List<DatabaseObject> objects = connectivity.query(query);
+    	if (objects == null || objects.size() <= 0) {
+    		return null;
+    	}
+    	
+    	List<T> woArray = new ArrayList<T>();
+    	
+    	for (DatabaseObject o: objects) {
+    		woArray.add((T)o);
+    	}
+    	
+/*    	Logger.debug("host:%s, cached[%s]", 
+    			host, woArray);
+*/
+    	return woArray;
+	}
+
+	private void cachePrefixesInDatabase(Context context, 
+			String host, List<T> wlObjects) {
+		if (context == null || host == null || wlObjects == null) {
+			return;
+		}
+		
+		final int N = wlObjects.size();
+		
+		if (N <= 0) {
+			return;
+		}
+		
+ 		DatabaseConnectivity connectivity = 
+			new DatabaseConnectivity(context, 
+					Constants.BLACK_WHITE_LIST_DATABASE_AUTHORITY,
+					getListObjectClass());
+ 		
+		connectivity.insert(wlObjects.toArray(new WhiteListObject[0]));
+	}
+
+	private List<T> findInPredefinedFile(Context context, String host) {
+		if (context == null || host == null) {
+			return null;
+		}
+		
+		JSonWhiteList jsonWl = JSonListParser.parseFromFile(context);
+//		Logger.debug("jsonWl = %s", jsonWl);
+		if (jsonWl == null) {
+			return null;
+		}
+		
+		JSonListObject[] jsonWlObjects = 
+			pickJSonObjects(jsonWl);
+		if (jsonWlObjects == null) {
+			return null;
+		}
+		
+		List<T> woArray = new ArrayList<T>();
+		
+		URL jwoUrl;
+		String jwoHost;
+		T wo;
+		for (JSonListObject jwo: jsonWlObjects) {
+			jwoHost = jwo.url_host;
+			
+			if (jwoHost == null) {
+				try {
+					jwoUrl = new URL(jwo.url_pattern);
+				} catch (MalformedURLException e) {
+					Logger.warnning("string to URL failure: %s",
+							e.toString());
+					jwoUrl = null;
+				}
+				
+				if (jwoUrl != null) {
+					jwoHost = jwoUrl.getHost();
+				}
+			}
+			
+			if (jwoHost == null) {
+				continue;
+			}
+			
+			if (jwoHost.equals(host)) {
+				wo = createListObject(context);
+				
+				wo.setHost(jwoHost);
+				wo.setMatchType(jwo.match_type);
+				wo.setUrlPattern(jwo.url_pattern);
+				
+				woArray.add(wo);
+			}
+		}
+		
+//		Logger.debug("woArray = %s", woArray);
+
+		return woArray;
+	}
+	
+	public void printCacheStatistics() {
+    	final int hit = sWhiteListCache.hitCount();
+    	final int missed = sWhiteListCache.missCount();
+    	final int eviction = sWhiteListCache.evictionCount();
+    	final int created = sWhiteListCache.createCount();
+    	final int put = sWhiteListCache.putCount();
+    	
+    	Logger.debug("[%s]: hit(%.2f, %d / %d): m(%d), e(%d), c(%d), p(%d)", 
+    			getListObjectClass().getSimpleName(),
+    			((float)hit / (hit + missed)),
+    			hit,
+    			(hit + missed),
+    			missed,
+    			eviction,
+    			created,
+    			put);
+    }
+
+	abstract public Class<? extends ListObject> getListObjectClass();
+	abstract public T createListObject(Context context);
+	abstract public JSonListObject[] pickJSonObjects(JSonList jsonWl);
+
+}

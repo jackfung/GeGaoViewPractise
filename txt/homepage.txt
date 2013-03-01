@@ -1,0 +1,7 @@
+1:
+第一次启动，根据sim卡语言，选择是中文主页还是法语主页。如果没有sim卡，则根据当前手机系统
+语言（即根据strings-##.xml）选择homepage,默认是(strings.xml）里定义的homeage.
+
+2：
+第一次选择完homepage以后，无论用户拔卡，插卡，都不再变动homepage。除非用户clear Data
+清空ShardPreference

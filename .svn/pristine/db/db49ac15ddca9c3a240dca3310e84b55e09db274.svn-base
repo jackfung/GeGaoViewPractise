@@ -1,0 +1,28 @@
+
+package com.gaoge.view.practise.blackwhitelist.operation;
+
+/**
+ * single instance method
+ * @author Admin
+ *
+ */
+public class WhiteList extends SiteList {
+
+    private static WhiteList mInstance;
+    
+    private WhiteList(){
+        
+    }
+    public static WhiteList getInstance(){
+        if(null == mInstance){
+            mInstance = new WhiteList();
+        }
+        return mInstance;
+    }
+    @Override
+    public void init() {
+        sInclusionList = new InclusionWhiteList();
+        sExclusionList = new ExclusionBlackList();
+    }
+
+}

@@ -1,0 +1,12 @@
+package com.gaoge.view.practise.json.whitelist;
+
+
+import android.content.Context;
+
+public class WhiteListInclusiveObject extends WhiteListObject {
+
+	public WhiteListInclusiveObject(Context context) {
+		super(context);
+	}
+
+}

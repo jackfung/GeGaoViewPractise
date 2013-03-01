@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+/* //device/apps/common/assets/res/any/http_authentication_colors.xml
+**
+** Copyright 2006, The Android Open Source Project
+**
+** Licensed under the Apache License, Version 2.0 (the "License"); 
+** you may not use this file except in compliance with the License. 
+** You may obtain a copy of the License at 
+**
+**     http://www.apache.org/licenses/LICENSE-2.0 
+**
+** Unless required by applicable law or agreed to in writing, software 
+** distributed under the License is distributed on an "AS IS" BASIS, 
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+** See the License for the specific language governing permissions and 
+** limitations under the License.
+*/
+-->
+<!-- FIXME: Change the name of this file!  It is now being used generically
+    for the browser -->
+<resources>
+    <color name="white">#ffffffff</color>
+    <color name="black">#ff000000</color>
+    <color name="user_guide_bg">#cc000000</color>
+    <color name="transparent">#00000000</color>
+    <color name="cygnus_background">#ff333333</color>
+    <color name="cygnus_background_popup">#ff282828</color>
+    <color name="cygnus_inverse">#ff333333</color>
+    <color name="cygnus_disabled">#ff888888</color>
+    <color name="cygnus_dim">#ff999999</color>
+    
+    <color name="bookmarkWidgetHeader">#383847</color>
+    <color name="bookmarkWidgetDivider">#383847</color>
+    <color name="bookmarkWidgetItemBackground">#2b2b3c</color>
+    <color name="bookmarkWidgetFolderBackground">#A0383847</color>
+    <color name="bookmarkWidgetFaviconBackground">#23ffffff</color>
+    <color name="bookmarkListFaviconBackground">#23ffffff</color>
+    <color name="batch_add_readlist_background">#606060</color>
+    <color name="tabFaviconBackground">#FF555555</color>
+    <color name="tabFocusHighlight">#FF99CC00</color>
+    <color name="qcMenuBackground">#C0000000</color>
+    <color name="qc_normal">#E02A96BC</color>
+    <color name="qc_selected">#F01A5B73</color>
+    <color name="qc_tab_nr">#F033B5E5</color>
+    <color name="tabViewTitleBackground">#D0000000</color>
+    <color name="navtab_bg">#80606060</color>
+
+    <color name="geolocation_permissions_prompt_background">#ffdddddd</color>
+    <color name="gray">#262626</color>
+    <color name="title_bar_bg">#333333</color>
+    <color name="menu_text_press_color">#3EB89A</color>
+    <color name="menu_text_disable_color">#888888</color>
+    <color name="list_selector">#993eb89a</color>
+    <color name="bookmark_background">#EEEEEE</color>
+    <color name="settings_background">#eeeeee</color>
+    <color name="tab_normal">#272727</color>
+    <color name="tab_press">#337061</color>
+    <color name="red">#FF0000</color>
+    <color name="orange_setting_press">#85cebd</color>
+    <color name="urlinput_highlight">#253e38</color>
+    <color name="browser_setting_summary">#999999</color>
+     <color name="guide_background">#e0000000</color>
+     <color name="cygnus_focused">#ff2eaccc</color>
+     <color name="cygnus_focused_faint">#802eaccc</color>
+     <color name="cygnus_normal">#ffeeeeee</color>
+     <color name="primary_text_dark">#802eaccc</color>
+      <color name="primary_text_light">#802eaccc</color>
+      <color name="secondary_text_dark">#802eaccc</color>
+      <color name="text_inverse_clickable">#802eaccc</color>
+      
+      <color name="primary_text_clickable_dark">#802eaccc</color>
+      <color name="help_tip">#ff2eaccc</color>
+      
+      
+</resources>

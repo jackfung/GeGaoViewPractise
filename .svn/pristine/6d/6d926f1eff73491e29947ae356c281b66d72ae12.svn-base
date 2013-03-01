@@ -1,0 +1,22 @@
+{
+"firstname":"Richard",
+"lastname":"Stearns",
+"almamater":"Cornell University",
+"occupation":"President, World Vision",
+"interview":
+	{
+		"source" : "http://blog.guykawasaki.com/2007/05/ten_or_so_quest.html#ixzz0giEIX0zY",
+		"questions":
+			[
+			{
+			"Question": "How much money does World Vision raise every year?",
+			"Answer": "Worldwide, World Vision raises about $2 billion annually; the U.S. office, which I head up, raises about half of the total."
+			},
+			{
+			"Question": "Is this the 80/20 rule where twenty percent of the people send in eighty percent of the money or are donations more spread out?",
+			"Answer": "World Vision's strength is that we are supported by hundreds of thousands of faithful people who give us about a dollar a day by sponsoring children. Our \"major donors\" account for less than five percent of our total income. Also, for a non-profit, we have quite a diversified portfolio of revenue. Just over forty percent is cash from private citizens; thirty percent is government grants in food and cash; and about thirty percent are products donated from corporation--what we call \"gifts-in-kind.\""
+			}
+			]
+	}
+}
+

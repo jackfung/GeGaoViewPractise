@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<list>
+    
+    <!-- 
+    <site type="exactly" url="http://sina.cn/nc.php"></site>
+    <site type="regex" url="http://book.douban.com/dir.html"></site>
+    <site type="prefix" url="http://www.baidu.com"></site>
+     -->
+     
+    <site type="exactly" url="http://sina.cn/nc.php2"/>
+    <site type="regex" url="http://book.douban.com/dir.html2"/>
+    <site type="prefix" url="http://www.baidu2.com"/>
+    
+    <!--  
+    <site type="exactly">http://sina.cn/nc.php</site>
+    <site type="regex">http://book.douban.com/dir.html</site>
+    <site type="prefix">http://sina.cn/nc.php</site>
+     --> 
+     
+     
+</list>
+
+<!-- 
+<exculde>
+         <site type="prefix" url="http://www.baidu2.com.exclude"/>
+         <site type="regex" url="http://sina.cn/nc.php.exclude"/>
+</exculde>
+ -->

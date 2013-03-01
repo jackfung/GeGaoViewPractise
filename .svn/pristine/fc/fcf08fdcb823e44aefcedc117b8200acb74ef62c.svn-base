@@ -1,0 +1,31 @@
+package com.gaoge.view.practise.json.whitelist;
+
+
+
+import android.content.Context;
+
+import com.gaoge.view.practise.json.whitelist.json.JSonWhiteList;
+import com.gaoge.view.practise.json.whitelist.json.JSonWhiteListObject;
+
+class InculsionWhiteList extends AbsWhiteList<WhiteListInclusiveObject> {
+
+	@Override
+	public Class<? extends WhiteListObject> getWhiteListObjectClass() {
+		return WhiteListInclusiveObject.class;
+	}
+
+	@Override
+	public WhiteListInclusiveObject createWhiteListObject(Context context) {
+		return new WhiteListInclusiveObject(context);
+	}
+
+	@Override
+	public JSonWhiteListObject[] pickJSonObjects(JSonWhiteList jsonWl) {
+		if (jsonWl == null) {
+			return null;
+		}
+		
+		return jsonWl.list;
+	}
+
+}

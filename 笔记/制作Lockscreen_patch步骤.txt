@@ -1,0 +1,55 @@
+﻿每个需要修改的目录创建2个patch:hand_way,patch_way
+
+【Music】
+1: cd /packages/apps/Music
+2：git checkout hand_way
+3：然后根据之前的patch file手动的向Music里修改内容
+4:git add .;git commit 
+5: mm编译一下，确任修改无语法错误
+6：git diff master hand_way > Music.patch
+
+【Settings】
+1: cd /packages/apps/Settings
+2：git checkout hand_way
+3：然后根据之前的patch file手动的向Settings里修改内容
+4: git add .;git commit 
+5: mm编译一下，确任修改无语法错误(正常的话是应该有错误的，因为还需要拷贝一个文件ic_settings_lockscreen.png,但是一旦先将该文件拷贝到Settings里的话，
+然后再生成的Settings.patch就不能正常使用了。所以应该在拷贝之前，先执行第5步，然后再拷贝文件，执行mm,如果这时候编译没错，则说明第5步生成的Settings.patch
+是正确的)
+6：git diff master hand_way > Settigs.patch
+7:拷贝文件ic_settings_lockscreen.png，git add .;git commit
+8:mm 一下
+
+【framework/base】
+1: cd framework/base
+2：git checkout hand_way
+
+3：然后根据之前的patch file手动的向framework/base里修改内容
+4：git add .;git commit 
+
+5: 这里需要在framework/base下，执行make update-api,;make -j4（这时候正常是应该有错误的，因为少了一个文件ExtLockScreenLoader,但是一旦先将该文件拷贝到
+framework里的话，然后再生成的framework_base.patch就不能正常使用了。所以应该在拷贝之前，先执行第5步，然后再拷贝文件，执行make update-api,;make -j4,
+如果这时候编译没错，则说明第5步生成的framework_base.patch是正确的）
+
+6：git diff master hand_way > framework_base.patch
+
+7:拷贝文件ExtLockScreenLoader，git add .;git commit
+
+注意，之前ExtLockScreenLoader.java中是有错误的，要把下面这个方法去掉：
+
+public void onMusicChanged(){
+
+
+}
+
+
+
+
+<string name="help_start_efficient_read">click here to start the trip of your efficient browsing~</string>
+    <string name="help_fullscreen">pull out from the \ntop edge to show \naddress bar and \ntoolbar</string>
+    <string name="help_select_articles">select all the links you want \nto see they will be saved to \nthe local,can be read offline~</string>
+    <string name="help_select_articles_light">click***light***to start reading, select \nlinks will be saved to read list \nto facilitate future look~</string>
+
+
+
+

@@ -1,0 +1,75 @@
+
+package com.gaoge.view.practise.blackwhitelist.json;
+
+import android.content.Context;
+
+import com.dailystudio.development.Logger;
+import com.google.gson.Gson;
+
+import java.io.IOException;
+import java.io.InputStream;
+
+public class JSonListParser {
+
+    private static final String BUILD_IN_BLACK_LIST = "multi_select_black_list.json";
+    private static final String BUILD_IN_WHITE_LIST = "multi_select_white_list.json";
+    private static final int TYPE_BLACKLIST = 0;
+    private static final int TYPE_WHITELIST = 1;
+
+    private final static JSonList parseListFromFile(Context context, int type) {
+        if (context == null) {
+            return null;
+        }
+
+        String wlJson = null;
+        try {
+            // wlJson = FileUtils.getAssetFileContent(
+            // context, BUILD_IN_WHITE_LIST);
+            String fileRes = "";
+            if (TYPE_BLACKLIST == type) {
+                fileRes = BUILD_IN_BLACK_LIST;
+            } else if (TYPE_WHITELIST == type) {
+                fileRes = "crawler.json";
+            } else {
+                throw new RuntimeException("Error parameter!");
+            }
+            InputStream is = context.getAssets().open(fileRes);
+            byte[] buffer = new byte[is.available()];
+            while (is.read(buffer) != -1) {
+                ;
+            }
+            wlJson = new String(buffer);
+        } catch (IOException e) {
+            Logger.warnning("extract build-in whitelist[%s] failure: %s",
+                    BUILD_IN_WHITE_LIST,
+                    e.toString());
+
+            wlJson = null;
+        }
+
+        if (wlJson == null) {
+            return null;
+        }
+
+        Gson gson = new Gson();
+
+        JSonList jsonWl = null;
+        try {
+            jsonWl = gson.fromJson(wlJson, JSonList.class);
+        } catch (Exception e) {
+            Logger.warnning("parse white list failure: %s", e.toString());
+            jsonWl = null;
+        }
+
+        return jsonWl;
+    }
+
+    public final static JSonList parseBlackListFromFile(Context context) {
+        return parseListFromFile(context, TYPE_BLACKLIST);
+    }
+
+    public final static JSonList parseWhiteListFromFile(Context context) {
+        return parseListFromFile(context, TYPE_WHITELIST);
+    }
+
+}

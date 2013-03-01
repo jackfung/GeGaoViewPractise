@@ -1,0 +1,38 @@
+package com.gaoge.view.practise.bitmap;
+
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.os.AsyncTask;
+import android.widget.ImageView;
+
+import java.lang.ref.WeakReference;
+
+public class BitmapWorkerTask extends AsyncTask<Integer,Integer,Bitmap> {
+    
+    private final WeakReference<ImageView> imageViewReferences;
+    private int resId = 0;
+    private Resources mResources;
+    
+    public BitmapWorkerTask(ImageView imageView,Resources resource){
+     // Use a WeakReference to ensure the ImageView can be garbage collected
+        imageViewReferences = new WeakReference(imageView);
+        mResources = resource;
+    }
+    
+    protected Bitmap doInBackground(Integer... params) {
+        resId = params[0];
+        return BitmapUtils.decodeSampledBitmapFromResource(mResources, resId, 100, 100);
+    }
+    
+    protected void onPostExecute(Bitmap bitmap) {
+        if(null != imageViewReferences && null != bitmap){
+            final ImageView imageView =  imageViewReferences.get();
+            if(null != imageView){
+                imageView.setImageBitmap(bitmap);
+            }
+        }
+    }
+
+
+    
+}

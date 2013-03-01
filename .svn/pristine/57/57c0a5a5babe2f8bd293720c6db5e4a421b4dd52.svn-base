@@ -1,0 +1,40 @@
+package com.gaoge.view.webview.help;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.FrameLayout;
+
+import com.orange.test.textImage.R;
+
+public class TestHelpViewClickActivity extends Activity {
+    Button bt_fullscreen;
+    FrameLayout mContent;
+    View mTip;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        // TODO Auto-generated method stub
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.help_test_click);
+        bt_fullscreen = (Button)this.findViewById(R.id.fullscreen);
+        mContent = (FrameLayout) this.getWindow()
+                .getDecorView().findViewById(android.R.id.content);
+        mTip = LayoutInflater.from(this).inflate(R.layout.tip_fullscreen, null);
+        bt_fullscreen.setOnClickListener(new OnClickListener() {
+            
+            @Override
+            public void onClick(View v) {
+                if(mTip.isShown()){
+                    mContent.removeView(mTip);
+                }else{
+                    mContent.addView(mTip);
+                }
+            }
+        });
+        
+    }
+
+}

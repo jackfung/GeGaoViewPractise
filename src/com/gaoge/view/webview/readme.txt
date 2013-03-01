@@ -1,0 +1,21 @@
+【MyUrlInputView处理返回键】
+
+4MyUrlInputView,MyNavigationBarBase,MyBrowserActivity都继承下面4个方法：
+onKeyDown(),onKeyUp(),dispatchKeyEvent(),dispatcheKeyEventPreIme()（MyBrowserActivity不能继承dispatcheKeyEventPreIme()方法）
+
+当MyUrlInputView获得焦点，按下返回键的时候，执行顺序：
+
+ GGGGGGGGGGGGGGG MyNavigationBarBase dispatchKeyEventPreIme
+ vvvvvvvvvvvvvvvv MyUrlInputView dispatchKeyEventPreIme
+ AAAAAAAAAAAAAAAA1 MyBrowserActivity dispatchKeyEvent
+ GGGGGGGGGGGGGGG MyNavigationBarBase dispatchKeyEvent
+ vvvvvvvvvvvvvvvv MyUrlInputView dispatchKeyEvent
+ vvvvvvvvvvvvvvvv MyUrlInputView onKeyDown
+ AAAAAAAAAAAAAAAA MyBrowserActivity onKeyDown
+ GGGGGGGGGGGGGGG MyNavigationBarBase dispatchKeyEventPreIme
+ vvvvvvvvvvvvvvvv MyUrlInputView dispatchKeyEventPreIme
+ AAAAAAAAAAAAAAAA1 MyBrowserActivity dispatchKeyEvent
+ GGGGGGGGGGGGGGG MyNavigationBarBase dispatchKeyEvent
+ vvvvvvvvvvvvvvvv MyUrlInputView dispatchKeyEvent
+ vvvvvvvvvvvvvvvv MyUrlInputView onKeyUp
+ AAAAAAAAAAAAAAAAA MyBrowserActivity onKeyUp

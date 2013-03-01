@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="bookmarkscontext">
+        <item>@string/open_bookmark</item>
+        <item>@string/contextmenu_openlink_newwindow</item>
+    </string-array>
+    <string-array name="historycontext">
+        <item>@string/contextmenu_openlink</item>
+        <item>@string/contextmenu_openlink_newwindow</item>
+    </string-array>
+    <string-array name="whitelist">
+        <item>http://www.sina.com.cn</item>
+        <item>http://3g.sina.com.cn</item>
+    </string-array>
+    <string-array name="blacklist">
+        <item>http://www.qq.com</item>
+        <item>http://www.baidu.com</item>
+    </string-array>
+
+</resources>

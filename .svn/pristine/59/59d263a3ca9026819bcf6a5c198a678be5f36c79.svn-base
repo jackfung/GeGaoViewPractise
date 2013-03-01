@@ -1,0 +1,23 @@
+
+package com.gaoge.view.practise.blackwhitelist.operation;
+
+public class BlackList extends SiteList {
+
+    private static BlackList mInstance;
+
+    private BlackList() {
+
+    }
+    public static BlackList getInstance() {
+        if (null == mInstance) {
+            mInstance = new BlackList();
+        }
+        return mInstance;
+    }
+
+    @Override
+    public void init() {
+        sInclusionList = new InclusionBlackList();
+        sExclusionList = new ExclusionBlackList();
+    }
+}

@@ -1,0 +1,7 @@
+package com.gaoge.view.practise.provider;
+
+import com.dailystudio.dataobject.database.DatabaseConnectivityProvider;
+
+public class WhiteUrlExclusionProvider extends DatabaseConnectivityProvider {
+
+}

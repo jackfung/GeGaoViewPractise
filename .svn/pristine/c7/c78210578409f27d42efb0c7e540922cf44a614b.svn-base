@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string-array name="bookmarkscontext">
+        <item>@string/open_bookmark</item>
+        <item>@string/contextmenu_openlink_newwindow</item>
+        <item>@string/edit_bookmark</item>
+        <item>@string/create_shortcut_bookmark</item>
+        <item>@string/contextmenu_sharelink</item>
+        <item>@string/contextmenu_copylink</item>
+        <item>@string/remove_bookmark</item>
+    </string-array>
+    <string-array name="historycontext">
+        <item>@string/contextmenu_openlink</item>
+        <item>@string/contextmenu_openlink_newwindow</item>
+        <item>@string/save_to_bookmarks</item>
+        <item>@string/contextmenu_sharelink</item>
+        <item>@string/contextmenu_copylink</item>
+        <item>@string/remove_history_item</item>
+    </string-array>
+    <string-array name="whitelist">
+        <item>http://www.sina.com.cn</item>
+        <item>http://3g.sina.com.cn</item>
+        <item>http://www.sohu.com</item>
+        <item>http://wap.sohu.com</item>        
+        <item>http://3g.163.com/book</item>
+        <item>http://www.hongxiutianxiang.com</item>
+        <item>http://ebook12.3g.qq.com</item>
+        <item>http://www.kaixin001.com</item>
+        <item>http://www.engadget.com</item>
+        <item>http://www.gfan.com</item>
+        <item>http://www.cnbeta.com</item>
+        <item>http://www.duowan.com</item>
+        <item>http://www.autohome.com</item>
+        <item>http://m.engadget.com</item>
+        <item>http://m.autohome.com</item>
+    </string-array>
+    <string-array name="blacklist">
+        <item>http://www.qq.com</item>
+        <item>http://www.baidu.com</item>
+        <item>http://m.baidu.com</item>
+        <item>http://www.google.com</item>
+        <item>http://www.google.cn</item>
+        <item>http://wap.sogou.com</item>
+        <item>http://www.sogou.com</item>
+        <item>http://www.renren.com</item>  
+        <item>http://3g.renren.com</item>        
+    </string-array>
+
+</resources>

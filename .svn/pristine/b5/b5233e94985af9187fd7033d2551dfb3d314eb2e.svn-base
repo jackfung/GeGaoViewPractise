@@ -1,0 +1,39 @@
+
+package com.gaoge.view.practise.blackwhitelist.operation;
+
+import android.content.Context;
+
+import com.gaoge.view.practise.blackwhitelist.databaseObject.ListObject;
+import com.gaoge.view.practise.blackwhitelist.databaseObject.WhiteListInclusiveObject;
+import com.gaoge.view.practise.blackwhitelist.databaseObject.WhiteListObject;
+import com.gaoge.view.practise.blackwhitelist.json.JSonList;
+import com.gaoge.view.practise.blackwhitelist.json.JSonListObject;
+import com.gaoge.view.practise.blackwhitelist.json.JSonWhiteBlackListParser;
+
+class InclusionWhiteList extends AbsList<ListObject> {
+
+    @Override
+    public Class<? extends WhiteListObject> getListObjectClass() {
+        return WhiteListInclusiveObject.class;
+    }
+
+    @Override
+    public ListObject createListObject(Context context) {
+        return new WhiteListInclusiveObject(context);
+    }
+
+    @Override
+    public JSonListObject[] pickJSonObjects(JSonList jsonWl) {
+        if (jsonWl == null) {
+            return null;
+        }
+
+        return jsonWl.list;
+    }
+    
+    @Override
+    public String getVersionKey() {
+        return WhiteBlackList.WHITELIST_VERSION;
+    }
+
+}

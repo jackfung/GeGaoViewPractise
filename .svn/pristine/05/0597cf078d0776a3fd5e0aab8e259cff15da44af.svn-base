@@ -1,0 +1,16 @@
+
+package com.gaoge.view.practise.provider;
+
+public interface Constants {
+    public static final String BLACK_WHITE_LIST_DATABASE_AUTHORITY = "com.gaoge.test.provider.urllist";
+    
+    public static final String WHITE_URL_DATABASE_AUTHORITY = "com.gaoge.test.provider.whiteUrl";
+
+    public static final int ITEM_UNKNOWN = 0x00;
+    public static final int ITEM_WHITE = 0x01;
+    public static final int ITEM_BLACK = 0x02;
+    
+    public static final String TYPE_EXACTLY = "exactly";
+    public static final String TYPE_PREFIX = "prefix";
+    public static final String TYPE_REGEX = "regex";
+}

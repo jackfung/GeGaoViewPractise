@@ -1,0 +1,575 @@
+1:Browser长按弹出上下文菜单：
+
+@Override
+public void onCreateContextMenu(ContextMenu menu, View v,
+ContextMenuInfo menuInfo) {
+mController.onCreateContextMenu(menu, v, menuInfo);
+}
+
+在Controller.onCreateContextMenu(menu, v, menuInfo);里
+
+这里的v可能是TitleBar或者WebView,如果是WebView,则：
+
+WebView.HitTestResult result = webview.getHitTestResult();
+
+
+从这个result里可以执行操作：int type = result.getType();final String extra = result.getExtra();
+
+
+接下来就是根据type的不同来决定显示哪些上下文menuItem.
+
+对于同一个链接，两次点击open in new window,报异常：
+
+
+E/AudioHardwareMSM72XX( 85): channel_count: 2
+E/AudioHardwareMSM72XX( 85): sample_rate: 44100
+D/BrowserProvider(13301): ##### insert() url: content://com.orange.browser/thumbnails,match: 2
+D/Tab (13301): url is: http://wapp.baidu.com/?itj=43
+E/Database(13301): Error inserting thumbnail=[B@40608898 _id=1
+E/Database(13301): android.database.sqlite.SQLiteConstraintException: error code 19: constraint failed
+E/Database(13301): at android.database.sqlite.SQLiteStatement.native_execute(Native Method)
+E/Database(13301): at android.database.sqlite.SQLiteStatement.execute(SQLiteStatement.java:61)
+E/Database(13301): at android.database.sqlite.SQLiteDatabase.insertWithOnConflict(SQLiteDatabase.java:1582)
+E/Database(13301): at android.database.sqlite.SQLiteDatabase.insert(SQLiteDatabase.java:1426)
+E/Database(13301): at com.orange.browser.provider.BrowserProvider.insert(BrowserProvider.java:956)
+E/Database(13301): at android.content.ContentProvider$Transport.insert(ContentProvider.java:198)
+E/Database(13301): at android.content.ContentResolver.insert(ContentResolver.java:604)
+E/Database(13301): at com.orange.browser.Tab$5.run(Tab.java:2176)
+E/Database(13301): at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1088)
+E/Database(13301): at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:581)
+E/Database(13301): at java.lang.Thread.run(Thread.java:1019)
+V/webkit (13301): FrameLoader: populateStaticHeaders:x-wap-profile
+D/BrowserProvider(13301): ##### rowID: -1
+W/dalvikvm(13301): threadid=32: thread exiting with uncaught exception (group=0x40020560)
+E/AndroidRuntime(13301): FATAL EXCEPTION: pool-1-thread-2
+
+
+E/AndroidRuntime(12246): FATAL EXCEPTION: pool-1-thread-2
+E/AndroidRuntime(12246): java.lang.IllegalArgumentException: Unknown URL
+E/AndroidRuntime(12246): at com.orange.browser.provider.BrowserProvider.insert(BrowserProvider.java:967)
+E/AndroidRuntime(12246): at android.content.ContentProvider$Transport.insert(ContentProvider.java:198)
+E/AndroidRuntime(12246): at android.content.ContentResolver.insert(ContentResolver.java:604)
+E/AndroidRuntime(12246): at com.orange.browser.Tab$5.run(Tab.java:2182)
+E/AndroidRuntime(12246): at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1088)
+E/AndroidRuntime(12246): at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:581)
+E/AndroidRuntime(12246): at java.lang.Thread.run(Thread.java:1019)
+W/ActivityManager( 187): Force finishing activity com.orange.browser/.BrowserActivity
+E/AudioHardwareMSM72XX( 85): MBADRC Enabled
+E/AudioHardwareMSM72XX( 85): MBADRC Enabled 16
+
+
+这个在Tab里有操作数据库：
+
+ContentResolver cr = mContext.getContentResolver();
+ContentValues values = new ContentValues();
+// values.put(Thumbnails._ID, mId);
+LogHelper.d(LOGTAG, "*************,mSaveThumbnail.run(),mId: " + mId);
+values.put(Thumbnails.THUMBNAIL, blob);
+cr.insert(Thumbnails.CONTENT_URI, values);
+
+不知道之前为什么要指明Thumbnails._ID的值，该值冲突了。注释掉就好了。
+
+
+下载image的时候，用2.3的下载模板，从framework里考出一个类：Downloads,但是在下载的时候，报错：
+
+
+I/DATA ( 342): [DCT] usb plug in
+E/DatabaseUtils( 504): Writing exception to parcel
+E/DatabaseUtils( 504): java.lang.SecurityException: Invalid value for is_public_api: null
+E/DatabaseUtils( 504): at com.android.providers.downloads.DownloadProvider.enforceAllowedValues(DownloadProvider.java:686)
+E/DatabaseUtils( 504): at com.android.providers.downloads.DownloadProvider.checkInsertPermissions(DownloadProvider.java:624)
+E/DatabaseUtils( 504): at com.android.providers.downloads.DownloadProvider.insert(DownloadProvider.java:442)
+E/DatabaseUtils( 504): at android.content.ContentProvider$Transport.insert(ContentProvider.java:198)
+E/DatabaseUtils( 504): at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:146)
+E/DatabaseUtils( 504): at android.os.Binder.execTransact(Binder.java:320)
+E/DatabaseUtils( 504): at dalvik.system.NativeStart.run(Native Method)
+W/dalvikvm(16834): threadid=1: thread exiting with uncaught exception (group=0x40020560)
+E/AndroidRuntime(16834): FATAL EXCEPTION: main
+E/AndroidRuntime(16834): java.lang.SecurityException: Invalid value for is_public_api: null
+E/AndroidRuntime(16834): at android.os.Parcel.readException(Parcel.java:1322)
+E/AndroidRuntime(16834): at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:160)
+E/AndroidRuntime(16834): at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:114)
+E/AndroidRuntime(16834): at android.content.ContentProviderProxy.insert(ContentProviderNative.java:408)
+E/AndroidRuntime(16834): at android.content.ContentResolver.insert(ContentResolver.java:604)
+E/AndroidRuntime(16834): at com.orange.browser.FetchUrlMimeType.onPostExecute(FetchUrlMimeType.java:130)
+E/AndroidRuntime(16834): at com.orange.browser.FetchUrlMimeType.onPostExecute(FetchUrlMimeType.java:1)
+E/AndroidRuntime(16834): at android.os.AsyncTask.finish(AsyncTask.java:417)
+E/AndroidRuntime(16834): at android.os.AsyncTask.access$300(AsyncTask.java:127)
+E/AndroidRuntime(16834): at android.os.AsyncTask$InternalHandler.handleMessage(AsyncTask.java:429)
+E/AndroidRuntime(16834): at android.os.Handler.dispatchMessage(Handler.java:99)
+E/AndroidRuntime(16834): at android.os.Looper.loop(Looper.java:130)
+E/AndroidRuntime(16834): at android.app.ActivityThread.main(ActivityThread.java:3694)
+E/AndroidRuntime(16834): at java.lang.reflect.Method.invokeNative(Native Method)
+E/AndroidRuntime(16834): at java.lang.reflect.Method.invoke(Method.java:507)
+E/AndroidRuntime(16834): at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:864)
+E/AndroidRuntime(16834): at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:622)
+E/AndroidRuntime(16834): at dalvik.system.NativeStart.main(Native Method)
+W/ActivityManager( 187): Force finishing activity com.orange.browser/.BrowserActivity
+W/ActivityManager( 187): Activity pause timeout for HistoryRecord{40594de8 com.orange.browser/.BrowserActivity}
+W/SchedPolicy( 187): add_tid_to_cgroup failed to write '504' (Operation not permitted); background=1
+W/System.err( 187): java.lang.SecurityException: No permission to modify given thread
+W/System.err( 187): at android.os.Process.setProcessGroup(Native Method)
+
+
+
+
+
+adb logcat -s Controller Tab BrowserProvider
+
+
+在设置上，觉得android 2.3 和 android 4.0的实现机制不太一样，
+
+android2.3 中 BrowserSettings是一个Observable对象，该类里有一个子类BrowserSettings.Observer实现了java.util.Observer接口。
+
+
+
+************************************************************android浏览器数据存放位置************************************************
+
+
+cache存放位置：
+/data/data/com.orange.browser/cache/webviewCache
+/data/data/com.orange.browser/databases/webviewCache.db
+
+history存放位置:
+
+
+history存放位置
+
+cookie,password,formdata,formurl,httpauth:
+/data/data/com.android.browser/databases/webview.db
+
+
+
+【OrangeBrowser清除历史记录】
+历史访问记录Activity是CombinedBookmarkHistoryActivity extends TabActivity，具体的是BrowserHistoryPage，在该类的onCreate函数里，发现查询的url竟然是：
+
+Browser.BOOKMARKS_URI,public static final Uri BOOKMARKS_URI = Uri.parse("content://com.orange.browser/bookmarks");
+
+这里浏览器好像历史记录也是存放在bookmark表里的，是根据bookmarks表的bookmark字段来判断是书签还是访问历史记录。依据就是：
+
+Browser类里的方法：
+
+public static final boolean canClearHistory(ContentResolver cr) {
+Cursor cursor = null;
+boolean ret = false;
+try {
+cursor = cr.query(
+BOOKMARKS_URI,
+new String [] { BookmarkColumns._ID, 
+BookmarkColumns.BOOKMARK,
+BookmarkColumns.VISITS },
+"bookmark = 0 OR visits > 0", 
+null,
+null
+); 
+ret = cursor.moveToFirst();
+
+// cursor = cr.query(History.CONTENT_URI,
+// new String [] { History._ID, History.VISITS },
+// null, null, null);
+// ret = cursor.getCount() > 0;
+} catch (IllegalStateException e) {
+Log.e(LOGTAG, "canClearHistory", e);
+} finally {
+if (cursor != null) cursor.close();
+}
+return ret;
+}
+
+
+
+
+
+
+
+
+【OangeBrowser视图结构如何建立】
+
+PhoneUi 直接把custom_screen加到android.R.id.content下，在（PhoneUi的构造函数里）
+
+而在PhoneUi 的onSetWebView()函数里，又把R.layout.my_tab放在了mContentView(R.id.main_content)下
+
+
+R.layout.my_tab内容：
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Wrapper layout for the WebView, which must be in a FrameLayout. -->
+    <FrameLayout android:id="@+id/webview_wrapper"
+        android:layout_width="match_parent"
+        android:layout_height="0dip"
+        android:layout_weight="1" />
+
+
+</LinearLayout>
+
+
+把webview放在webview_wrapper下的代码是在BaseUI的attachTabToContentView方法里，
+
+
+
+这么说来，webview和finddialog都是同一级的子view,他们的父view都是Tab中的mContainer(R.layout.my_tab)
+adb logcat -s MyFindDialog MyBrowserWebView MyTab
+
+MOTIONEVENT.ACTION_DOWN = 0;
+
+MOTIONEVENT.ACTION_UP = 1;
+
+MOTIONEVENT.ACTION_MOVE = 2;
+
+
+
+【浏览器加载进度】
+WebChromeClient有回调函数：onProgressChanged()，通过WebView.setWebChromeClient()来得知当前加载进度
+
+
+
+【ContextMenu】
+ContentMenu是针对具体的某一个view的，要想让一个view可以弹出上下文菜单，有两种办法：
+1：在Activity中调用registerForContextMenu(View targetView)
+
+2:调用view.setOnCreateContextMenuListener(Activity act)
+这种方法调用的次序是先调用view的createContextMenu()方法，然后再调用act的onCreateContextMenu方法，所以如果不做处理的话，将会是一个view和activity的上下文菜单叠加的现象。
+
+
+但是在OrangeBrowser项目里，发现TitleBar既没有采用第一种方法，也没有采用第二种方法，但是TitleBar确仍然可以弹出上下文菜单。比较奇特，最后发现是因为TitleBar里有
+EditText，所以就可以弹出上下文菜单，并且弹出的上下文菜单内容是EditText自身的上下文菜单内容，加上TitleBar在方法：
+
+@Override
+	public void createContextMenu(ContextMenu menu) {
+		// TODO Auto-generated method stub
+		
+		menu.add("titleBarMenu1");
+		menu.add("titleBarMenu2");
+		mActivity.onCreateContextMenu(menu, this, null);
+		
+	}
+
+里声明的上下文菜单内容。
+
+android2.3中弹出上下文菜单是通过调用
+
+   private class MyHandler extends Handler {
+        public void handleMessage(Message msg) {
+            if (msg.what == LONG_PRESS) {
+                // Prevent the normal action from happening by setting the title
+                // bar's state to false.
+                mTitleBg.setPressed(false);
+                // Need to call a special method on BrowserActivity for when the
+                // fake title bar is up, because its ViewGroup does not show a
+                // context menu.
+                mBrowserActivity.showTitleBarContextMenu();
+            }
+        }
+    };
+
+/* package */ void showTitleBarContextMenu() {
+        if (null == mTitleBar.getParent()) {
+            return;
+        }
+        openContextMenu(mTitleBar);//再调用TitleBar类里的createContextMenu()方法。
+    }
+
+来显示上下文菜单的，
+
+View 中 createContextMenu()和onCreateContextMenu（）的区别。
+
+createContextMenu()会把子view中创建的context menu item 添加到 Activity中的context menu中；而onCreateContextMenu（）只会
+显示子类创建的context menu item.
+
+
+
+三：还有一种显示Context menu 的方法就是：在activity里调用openContextMenu(View view)方法，前提是view里覆盖了方法
+
+createContextMenu()
+
+
+【URLInputView状态问题】
+URLInputView有三种状态，
+
+static final int STATE_NORMAL = 0;
+static final int STATE_HIGHLIGHTED = 1;
+        static final int STATE_EDITED = 2;
+
+StateListener的实现类是NavigationBarPhone，
+
+
+
+
+【从market上下载语音搜索软件】
+
+Intent marketIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=pname:com.google.android.voicesearch"));
+
+startActivity(marketIntent); 
+
+云舟浏览器上的地址是：market://details?id=com.google.android.voicesearch
+网页上voice search的网址是：
+
+https://market.android.com/details?id=com.google.android.voicesearch
+
+
+【做一个照片分享弹出对话框的效果】
+查看打开Gallery的intent,Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.cooliris.media/.Gallery
+
+
+android:button="@drawable/history_item_not_selected"
+
+
+【网页里，键盘挡住InputBox的解决办法】
+
+写一个测试程序，有5个EditText，
+
+1：直接运行，在最下面的点击，默认的往上挤。可以在最下边一个EditText输入。
+
+2：在AndroidManifest.xml里加入 android:windowSoftInputMode="stateHidden|adjustResize"，运行，
+
+在最下边一个EditText输入的时候，看不到输入的内容。其中stateHidden|是保证进入该Activity的时候，不弹出输入框。
+
+
+3：改成android:windowSoftInputMode="adjustPan"，在最下边一个EditText输入，可以看到输入内容
+
+
+【输完网址按下回车键】
+这里需要监听回车键按下的动作。但是OrangeBrowser是这样实现的，UrlInputView实现OnEditorActionListener接口，覆盖onEditorAction回调方法，当按下软件盘
+的回车键的时候，就会调用这个函数：
+
+public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+        LogHelper.d("url", "@@@@@@@@@@@@@ UrlInputView ,onEditorAction");
+        finishInput(getText().toString(), null, TYPED);
+        return true;
+    }
+
+UrlInputView的listener是NavigationBarBase
+
+
+
+【浏览器不能上传文件bug】
+正常的native浏览器点击上传文件的时候：
+ START {act=android.intent.action.CHOOSER cmp=android/com.android.internal.app.ChooserActivity (has extras)} from pid 31815
+
+
+【androd2.3 不能实现文本复制】
+
+长按菜单，2.3平台上不能实现文本选中和复制；但是4.0可以，发现长按菜单的流程是：
+
+Controller中的onCreateContextMenu`
+
+CygnusBrowser:
+
+--------- beginning of /dev/log/main
+D/menu    ( 4174): $$$$$$$$$$$$$$$$ onCreateContextMenu v: com.orange.browser.BrowserWebView@406a4ea8
+W/Controller( 4174): We should not show context menu when nothing is touched
+
+native Browser:
+
+
+
+
+
+【帮助效果】
+网易新闻分析
+点击网易launcher,
+
+I/ActivityManager(  269): Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.netease.news
+reader.activity/.MainIndexActivity bnds=[180,580][360,808] } from pid 556
+I/MobileAgent(17235): Start new session: 2x1kfBk63z1332391919609
+
+然后：Starting: Intent { cmp=com.netease.newsreader.activity/.NewsReader
+
+设置是SettingsActivity,点击“新手引导”时：Starting: Intent { flg=0x4000000 cmp=com.netease.newsreader.activity/.NewsReader
+
+
+分析在NewReader里：
+
+ private View.OnClickListener guideClickListener = new View.OnClickListener()
+  {
+    public void onClick(View paramView)
+    {
+      NewsReader.this.set_prefs.edit().putBoolean("newsreaderguide", false).commit();
+      if (NewsReader.this.mainguide_stub != null)
+      {
+        NewsReader.this.mainguide_stub.setVisibility(8);
+        ((ImageView)NewsReader.this.mainguide_stub.findViewById(2131493025)).setBackgroundDrawable(null);
+      }
+    }
+  };
+
+再搜索guideClickListener，
+
+private ViewStub viewstub_mainguide;
+private View mainguide_stub;
+
+
+ if (this.newsreaderguide)
+    {
+      this.mainguide_stub = this.viewstub_mainguide.inflate();
+      ((ImageView)this.mainguide_stub.findViewById(2131493025)).setBackgroundResource(2130837628);
+      this.mainguide_stub.setOnClickListener(this.guideClickListener);
+    }
+
+可见这里的guide就是一个ImageView
+
+【PopupWindow】
+PopupWindow有一个bug，就是如果在xml文件里指定PopupWindow背景的话， popupwindow按back键不能退出，加上下面的代码就可以解决。
+
+mPopupWindow.setBackgroundDrawable(new BitmapDrawable());
+
+【定制Activity TitleBar】
+在OrangeBrowser的设置界面里，要使用到自定义的title,在BrowserPreferencePage里添加如下代码：
+
+  requestWindowFeature(Window.FEATURE_CUSTOM_TITLE);
+        super.onCreate(savedInstanceState);
+        // Load the XML preferences file
+        addPreferencesFromResource(R.xml.browser_preferences);
+        getWindow().setFeatureInt(Window.FEATURE_CUSTOM_TITLE, R.layout.settings_titlebar);
+        
+        getListView().setCacheColorHint(Color.TRANSPARENT);
+        getListView().setDivider(null);
+
+结果发现在android 4.0系统上出现Error,信息如下：
+
+E/AndroidRuntime(31789): FATAL EXCEPTION: main
+E/AndroidRuntime(31789): java.lang.RuntimeException: Unable to start activity ComponentInfo{com.orange.browser/com.orange.browser.BrowserPreference
+ge}: android.util.AndroidRuntimeException: You cannot combine custom titles with other title features
+E/AndroidRuntime(31789):        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:1956)
+E/AndroidRuntime(31789):        at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:1981)
+E/AndroidRuntime(31789):        at android.app.ActivityThread.access$600(ActivityThread.java:123)
+E/AndroidRuntime(31789):        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1147)
+E/AndroidRuntime(31789):        at android.os.Handler.dispatchMessage(Handler.java:99)
+E/AndroidRuntime(31789):        at android.os.Looper.loop(Looper.java:137)
+E/AndroidRuntime(31789):        at android.app.ActivityThread.main(ActivityThread.java:4464)
+E/AndroidRuntime(31789):        at java.lang.reflect.Method.invokeNative(Native Method)
+E/AndroidRuntime(31789):        at java.lang.reflect.Method.invoke(Method.java:511)
+E/AndroidRuntime(31789):        at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:791)
+E/AndroidRuntime(31789):        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:558)
+E/AndroidRuntime(31789):        at dalvik.system.NativeStart.main(Native Method)
+E/AndroidRuntime(31789): Caused by: android.util.AndroidRuntimeException: You cannot combine custom titles with other title features
+E/AndroidRuntime(31789):        at com.android.internal.policy.impl.PhoneWindow.requestFeature(PhoneWindow.java:222)
+E/AndroidRuntime(31789):        at com.android.internal.policy.impl.PhoneWindow.generateLayout(PhoneWindow.java:2547)
+E/AndroidRuntime(31789):        at com.android.internal.policy.impl.PhoneWindow.installDecor(PhoneWindow.java:2767)
+E/AndroidRuntime(31789):        at com.android.internal.policy.impl.PhoneWindow.setContentView(PhoneWindow.java:247)
+E/AndroidRuntime(31789):        at android.app.Activity.setContentView(Activity.java:1884)
+E/AndroidRuntime(31789):        at android.preference.PreferenceActivity.onCreate(PreferenceActivity.java:503)
+E/AndroidRuntime(31789):        at com.orange.browser.BrowserPreferencesPage.initCustomTitle(BrowserPreferencesPage.java:47)
+E/AndroidRuntime(31789):        at com.orange.browser.BrowserPreferencesPage.onCreate(BrowserPreferencesPage.java:57)
+E/AndroidRuntime(31789):        at android.app.Activity.performCreate(Activity.java:4514)
+E/AndroidRuntime(31789):        at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1049)
+E/AndroidRuntime(31789):        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:1920)
+E/AndroidRuntime(31789):        ... 11 more
+E/DMClientService(31938): startEngine() -- registerNodeIoHandler!!
+
+
+但是自己写的demo程序，同样的代码却可以在android 4.0上正常运行！这原因出在哪呢?
+
+后来发现要改变TitleBar的UI，一行代码也不需要在代码里指定，在xml文件里通过Theme和Style就可以了。如下：
+
+【android Theme And Style】
+
+<activity
+            android:name=".BrowserPreferencesPage"
+            android:configChanges="orientation|keyboardHidden"
+            android:label="@string/menu_preferences" 
+            android:theme="@style/browser_settigns_style">
+        </activity>
+
+
+
+<style name="NoTitleBar" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:textColorPrimaryInverse">@color/browser_setting_summary</item>
+        <item name="android:windowBackground">@color/bookmark_background</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowTitleSize">38dip</item>
+        <item name="android:windowTitleStyle">@style/CustomWindowTitleText</item>
+        <item name="android:windowTitleBackgroundStyle">@style/CustomWindowTitleBackground</item>
+    </style>
+
+    <style name="Default" parent="@style/NoTitleBar">
+        <item name="android:windowNoTitle">false</item>
+    </style>
+
+    <style name="CustomWindowTitleBackground">
+        <item name="android:background">@color/gray</item>
+    </style>
+
+    <style name="CustomWindowTitleText">
+        <item name="android:textSize">20dip</item>
+        <item name="android:textColor">#FFffffff</item>
+        <item name="android:paddingLeft">10dp</item>
+    </style>
+
+即可。@android:style/Theme.Light.NoTitleBar 所在android源码中的位置是：C:\development\OrangeBrowser\android_ics_sourcecode\frameworks\base\core\res\res\values\themes.xml里
+
+
+【PreferenceActivity的使用】
+
+ addPreferencesFromResource(R.xml.test_preferences);
+
+<PreferenceCategory
+            android:title="preferenceCategory"
+            >  
+
+
+        <CheckBoxPreference
+                android:key="cbp_1"
+                android:defaultValue="true"
+                android:title="Title"
+                android:summary="summary" />
+        
+        <CheckBoxPreference
+                android:key="cbp_2"
+                android:defaultValue="true"
+                android:title="Title"
+                android:summary="summary" />
+        
+        <CheckBoxPreference
+                android:key="cbp_3"
+                android:defaultValue="true"
+                android:widgetLayout="@layout/custom_checkbox_widget"
+                android:layout="@layout/custom_checkbox_preferece_layout"
+                android:title="Title"
+                android:summary="summary" />
+        
+        
+        
+        
+    </PreferenceCategory>
+执行该程序后，发现在/data/data/com.orange.test.textImage里自动产生下列记录：
+
+<boolean name="cbp_1" value="true" />
+<boolean name="cbp_3" value="true" />
+<boolean name="cbp_2" value="false" />
+
+在Activity里找到特定的Preference：pref1 = this.getPreferenceManager().findPreference(KEY_CP1);
+
+要想使某一个Preference置灰，就先封装一个灰色字体的layout，然后调用this.setLayoutResource(R.layout.custom_preferece_disabled_layout);即可。
+
+
+【android 横竖屏切换】
+
+方法一:
+
+新建两个layout文件夹,layout-land,layout-port,然后再这两个文件夹下分别放置同名不同内容的layout文件。
+注意在AndroidManifest.xml文件里的响应的<activity>里不能添加
+android:configChanges="orientation|keyboardHidden|screenSize"
+
+因为一旦加上这句话的话，默认的就会走到Activity的onConfigurationChanged()方法，android系统就不会走onCreate()方法，也就
+不会再去自动的搜索相对应横，竖屏的xml文件
+
+方法二:
+在AndroidManifest.xml文件里的响应的<activity>里添加android:configChanges="orientation|keyboardHidden|screenSize",然后再
+Activity的onConfigurationChanged（）方法里添加代码控制
+
+
+【项目里用到像素如何处理】
+知道，在onTouchEvent里通过event.getX()得到的都是px，而非dp，假如我要判断一个触摸事件的x,y坐标值是否在在一个固定的矩形区域内，
+那么这个矩形区域的bottom和right坐标就需要在代码中确定下来，但是假如直接这么写
+int bottom = 50;
+int right = 50;的话，这就是px之，在不同的手机上适配可能就会出现问题。
+为了适配率，应该这样在values下建立一个dimes.xml文件，然后声明：
+<dimen name="bottom">50dip</dimen>
+<dimen name="right">50dip</dimen>
+这样才可以合适的解决适配率的问题。

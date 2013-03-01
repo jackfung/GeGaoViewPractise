@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <com.gaoge.view.practise.event.touch.ParentView
+        android:id="@+id/parentView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/white"
+        >
+   		     
+        <com.gaoge.view.practise.event.touch.BottomBarMenuView
+	        android:id="@+id/sonView"
+	        android:layout_width="match_parent"
+	        android:layout_height="250dp"
+	        android:background="@color/red"
+	        android:layout_above="@+id/bottom"
+        >
+        
+        </com.gaoge.view.practise.event.touch.BottomBarMenuView>
+            
+        
+       <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_above="@+id/bottom"
+          >
+            
+           <com.gaoge.view.practise.event.touch.MyFullscreenSwitcher
+                android:id="@+id/fullscreen_switcher"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="top"
+                android:background="@color/qc_selected"
+                android:visibility="gone"  />
+           
+       </FrameLayout>
+        
+        
+        
+        <LinearLayout
+            android:id="@id/bottom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true" 
+            android:orientation="horizontal" >
+            
+	        <Button
+	            android:id="@+id/bt_function"
+	            android:layout_width="wrap_content"
+	        	android:layout_height="wrap_content"
+	        	android:text="Hide Bottom"
+	        	android:layout_alignParentBottom="true"
+	        	android:layout_centerHorizontal="true"
+	            />
+	        
+	        <Button
+	            android:id="@+id/bt_full"
+	            android:layout_width="wrap_content"
+	        	android:layout_height="wrap_content"
+	        	android:text="Hide Full"
+	        	android:layout_alignParentBottom="true"
+	        	android:layout_toRightOf="@+id/bt_function"
+	            />
+        </LinearLayout>
+        
+   </com.gaoge.view.practise.event.touch.ParentView>
+
+</LinearLayout>

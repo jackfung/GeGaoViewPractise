@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <com.gaoge.view.webview.MyBrowsingContainer
+        android:id="@+id/vertical_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:baselineAligned="false"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:background="#ffffff" />
+        
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/title"
+            android:layout_above="@+id/bottom" >
+
+            <FrameLayout
+                android:id="@+id/main_content"
+                
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+            
+            <com.gaoge.view.webview.MyFullscreenSwitcher
+                android:id="@+id/fullscreen_switcher"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="top"
+                android:background="@drawable/cover_bg" />
+            
+        </FrameLayout>
+        
+        
+        <FrameLayout
+            android:id="@+id/bottom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true" />
+            
+    </com.gaoge.view.webview.MyBrowsingContainer>
+
+    
+    <FrameLayout
+        android:id="@+id/window_manager_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?android:windowBackground"
+        android:visibility="gone" >
+    </FrameLayout>
+    
+    
+</merge>

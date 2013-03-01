@@ -1,0 +1,326 @@
+package com.gaoge.view.webview;
+
+
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.graphics.drawable.AnimationDrawable;
+import android.os.Handler;
+import android.preference.PreferenceManager;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.View.OnTouchListener;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+
+import com.gaoge.view.practise.utils.LogHelper;
+import com.gaoge.view.webview.interfaces.MyUI;
+import com.gaoge.view.webview.interfaces.MyUiController;
+import com.orange.test.textImage.R;
+
+public class MyBrowserAssociatedHelp {
+    static final String SHOW_FULLSCREEN_TIP = "show_fullscreen_tip";
+    static final String SHOW_EFFICIENT_READ_TIP = "show_efficient_read_tip";
+    static final String SHOW_SELECT_ARTICLES_TIP = "show_select_articles_tip";
+    MyBaseUi mBaseUi;
+    private MyUiController mUiController;
+    private FullscreenTip mFullscreenTip;
+    private EfficientReadTip mEfficientReadTip;
+    private SelectArticlesTip mSelectArticlesTip;
+    private Context mContext;
+    
+
+    public MyBrowserAssociatedHelp(Context context, MyBaseUi MyBaseUi, MyUiController controller) {
+        mBaseUi = MyBaseUi;
+        mContext = context;
+        mUiController = controller;
+        Activity act = (Activity)mContext;
+        
+        if (PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
+                SHOW_FULLSCREEN_TIP,
+                true)) {
+            mFullscreenTip = new FullscreenTip(context, mBaseUi.mContent);
+        }
+        if(PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
+                SHOW_EFFICIENT_READ_TIP,
+                true)){
+            mEfficientReadTip = new EfficientReadTip(context, mBaseUi.mContent);
+        }
+        if(PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
+                SHOW_SELECT_ARTICLES_TIP,
+                true)){
+            mSelectArticlesTip = new SelectArticlesTip(context, mBaseUi.mContent);
+        }
+    }
+
+    public static MyUI getUI(Activity activity,MyController controller){
+        MyUI MyUI;
+        if (isHelpEnabled(activity)) {
+            MyUI = new MyHelpEnabledPhoneUi(activity, controller);
+        } else {
+            MyUI = new MyBaseUi(activity, controller);
+        }
+        return MyUI;
+    }
+    
+    private static boolean isHelpEnabled(Activity activity){
+        return PreferenceManager.getDefaultSharedPreferences(activity).getBoolean(MyBrowserAssociatedHelp.SHOW_FULLSCREEN_TIP,
+                true) ||
+                PreferenceManager.getDefaultSharedPreferences(activity).getBoolean(MyBrowserAssociatedHelp.SHOW_EFFICIENT_READ_TIP,
+                        true);
+    }
+    public void onConfigurationChanged(Configuration config) {
+        if (mFullscreenTip != null) {
+            mFullscreenTip.update();
+        }
+        if(mEfficientReadTip != null){
+            mEfficientReadTip.update();
+        }
+    }
+
+    public boolean onBackKey() {
+        if (mFullscreenTip != null && mFullscreenTip.isShown()) {
+            return true;
+        }
+        if (mEfficientReadTip != null && mEfficientReadTip.isShown()) {
+            return true;
+        }
+        if(null != mSelectArticlesTip && mSelectArticlesTip.isShown()){
+            return true;
+        }
+        return false;
+    }
+
+    public void suggestHideTitleBar() {
+        if (mFullscreenTip != null && mBaseUi.canHideTitleBar()
+                && !mUiController.isFindDialogShowing()) {
+            mFullscreenTip.show();
+        }
+        if (mBaseUi.canHideTitleBar()) {
+            if(null != mEfficientReadTip && mEfficientReadTip.isShown()){
+                mEfficientReadTip.remove();
+            }
+        }
+    }
+    public void showEfficientTip(){
+        showEfficientTipAccordingUrl();
+    }
+    
+    public void showSelectArticlesTip(){
+        if(null != mSelectArticlesTip){
+            mSelectArticlesTip.show();
+        }
+    }
+    public boolean isSelectArticleTipShowing(){
+        if(null != mSelectArticlesTip){
+            return mSelectArticlesTip.isShown();
+        }
+        return false;
+    }
+    
+    public void showTitleBar() {
+    }
+
+    private void showEfficientTipAccordingUrl() {
+//        String currentUrl = mBaseUi.getCurrentUrl();
+//        boolean isWhiteUrl = Utils.isInWhiteList(mContext, currentUrl);
+//        if(!mBaseUi.isHomePageShowing() && isWhiteUrl){
+//            /**
+//             * this judge statment is used for the case which first close efficient tip,then
+//             * down fling on the fullscreen tip
+//             */
+//            if(null != mEfficientReadTip){
+//                mEfficientReadTip.show();
+//            }
+//           
+//        }
+    }
+
+    abstract class HelpTip {
+        protected Context mContext;
+        protected View mTip;
+        protected boolean mShowTip = true;
+
+        private ViewGroup mParent;
+        private SharedPreferences mSharedPref;
+        private String mPreferenceKey;
+        private int mResId;
+
+        public HelpTip(Context context, int resId, ViewGroup parent, String preferenceKey) {
+            mPreferenceKey = preferenceKey;
+            mContext = context;
+            mResId = resId;
+            mParent = parent;
+            mSharedPref = PreferenceManager.getDefaultSharedPreferences(context);
+            
+        }
+
+        public boolean isShown() {
+            return mTip != null && mTip.isShown();
+        }
+
+        public View getTip() {
+            return mTip;
+        }
+
+        public void show() {
+            if (!mShowTip) {
+                return;
+            }
+            if (mTip != null) {
+                mParent.removeView(mTip);
+            }
+            mTip = LayoutInflater.from(mContext).inflate(mResId, null);
+            final View tip = mTip;
+            mParent.addView(mTip);
+//            mParent.addView(tip);
+            View close = tip.findViewById(R.id.close);
+            close.setOnClickListener(new OnClickListener() {
+                public void onClick(View v) {
+                    remove();
+                }
+            });
+        }
+
+        public void update() {
+            if (isShown()) {
+                show();
+            }
+        }
+
+        public boolean remove() {
+            if (mTip != null) {
+                mSharedPref.edit().putBoolean(mPreferenceKey, false).commit();
+                mShowTip = false;
+                mParent.removeView(mTip);
+                mTip = null;
+                return true;
+            }
+            return false;
+        }
+
+    }
+    private class FullscreenTip extends HelpTip{
+
+        public FullscreenTip(Context context, ViewGroup parent) {
+            super(context, R.layout.tip_fullscreen, parent, SHOW_FULLSCREEN_TIP);
+        }
+
+        @Override
+        public void show() {
+            super.show();
+            if (!mShowTip) {
+                return;
+            }
+            mTip.setOnTouchListener(new MyCloseFullscreenListener(mContext, mBaseUi) {
+                protected void onQuitFullscreen() {
+                    remove();
+                    showEfficientTipAccordingUrl();
+                }
+            });
+        }
+    }
+    
+    private class EfficientReadTip extends HelpTip {
+        float dismiss_x;
+        float dismiss_y;
+
+        public EfficientReadTip(Context context, ViewGroup parent) {
+            super(context, R.layout.tip_efficient_read, parent, SHOW_EFFICIENT_READ_TIP);
+            dismiss_x = context.getResources().getDimension(R.dimen.help_guide_read_dismiss_x);
+            dismiss_y = context.getResources().getDimension(R.dimen.help_guide_read_dismiss_y);
+        }
+
+        public void show() {
+            super.show();
+            if (!mShowTip) {
+                return;
+            }
+            mTip.setOnTouchListener(new OnTouchListener() {
+
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (MotionEvent.ACTION_UP == event.getAction()) {
+                        float x = event.getX();
+                        float y = event.getY();
+                        if ((x > 0 && x < dismiss_x) && (y > 0 && y < dismiss_y)) {
+                            remove();
+//                            mBaseUi.getTitleBar().getNavigationBar().startEffieientRead();
+                        }
+                    }
+                    return false;
+                }
+            });
+        }
+
+    }
+    
+    private class SelectArticlesTip extends HelpTip {
+        AnimationDrawable mHelpGuideAnimation;
+        Handler mAnimationHandler;
+        ImageView mReplay;
+
+        public SelectArticlesTip(Context context, ViewGroup parent) {
+            super(context, R.layout.tip_select_articles, parent, SHOW_SELECT_ARTICLES_TIP);
+            mAnimationHandler = new Handler();
+        }
+
+        public void show() {
+            super.show();
+            if (!mShowTip) {
+                return;
+            }
+            mReplay = (ImageView) mTip.findViewById(R.id.replay);
+            mReplay.setOnClickListener(new OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    mReplay.setVisibility(View.GONE);
+                    startHelpGuideAnimation();
+                }
+            });
+            final ImageView content = (ImageView) mTip.findViewById(R.id.imv_help_guide_content);
+            content.setBackgroundResource(R.drawable.help_guide_four_content_animation);
+
+            mHelpGuideAnimation = (AnimationDrawable) content.getBackground();
+            LogHelper.d(LogHelper.TAG_HELP,"@@@@@@@@@@@@@@@@@@@@@ null == mAnimationHandler: " + (null == mAnimationHandler));
+            mAnimationHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    startHelpGuideAnimation();
+                }
+            }, 500);
+           
+        }
+
+        private void startHelpGuideAnimation() {
+            if (null != mHelpGuideAnimation && mHelpGuideAnimation.isRunning()) {
+                mHelpGuideAnimation.stop();
+            }
+            mHelpGuideAnimation.start();
+            doThingsWhenAnimationEnd();
+        }
+
+        private void doThingsWhenAnimationEnd() {
+            mAnimationHandler.postDelayed(new Runnable() {
+                public void run() {
+                    mReplay.setVisibility(View.VISIBLE);
+                    mReplay.setClickable(true);
+                }
+            }, getTotalDuration());
+        }
+
+        public int getTotalDuration() {
+            int iDuration = 0;
+            for (int i = 0; i < mHelpGuideAnimation.getNumberOfFrames() - 1; i++) {
+                iDuration += mHelpGuideAnimation.getDuration(i);
+            }
+            return iDuration;
+        }
+
+    }
+}

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<dimen name="browser_action_bar_height">42dp</dimen>
+	<dimen name="browser_action_bar_padding">6dp</dimen>
+	<dimen name="browser_actbar_separator_padding_hori">10dp</dimen>
+	<dimen name="browser_action_bar_text_size">18dp</dimen>
+	<dimen name="dialog_width">300dp</dimen>
+	<dimen name="help_guide_read_dismiss_x">50dip</dimen>
+	<dimen name="help_guide_read_dismiss_y">50dip</dimen>
+	<dimen name="readingbutton_margin_right">4dip</dimen>
+	<dimen name="autocompletetextview_compound_drawable_rightoffset">6dip</dimen>
+	<dimen name="qc_slop">10dip</dimen>
+	<dimen name="customdialog_margin_left">9dp</dimen>
+	<dimen name="divider_width">1dp</dimen>
+	<dimen name="bookmarkThumbnailWidth">96dip</dimen>
+	<dimen name="suggest_item_icon1_marginleft">20dp</dimen>
+    <dimen name="suggest_item_icon1_marginright">20dp</dimen>
+    <dimen name="suggest_item_padding">20dp</dimen>
+    <dimen name="list_view_padding_left">12dp</dimen>
+    <dimen name="reading_list_padding_hori">16dp</dimen>
+    <dimen name="window_indicator_text_size">13dp</dimen>
+    <dimen name="window_indicator_space">9dp</dimen>
+    <dimen name="image_thumbnail_size">100dp</dimen>
+    <dimen name="image_thumbnail_spacing">1dp</dimen>
+    <dimen name="image_detail_pager_margin">80dp</dimen>
+    <dimen name="progress_bar_margin">-11dip</dimen>
+</resources>

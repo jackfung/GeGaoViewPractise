@@ -1,0 +1,51 @@
+package com.gaoge.view.practise.json.whitelist;
+
+
+import java.net.MalformedURLException;
+import java.net.URL;
+
+import com.dailystudio.development.Logger;
+
+import android.content.Context;
+
+public class WhiteList {
+	
+	private static InculsionWhiteList sInclusionList = new InculsionWhiteList();
+	private static ExculsionWhiteList sExclusionList = new ExculsionWhiteList();
+	
+	public static boolean isInWhiteList(Context context, String urlString) {
+		URL url = null;
+		
+		try {
+			url = new URL(urlString);
+		} catch (MalformedURLException e) {
+			Logger.warnning("string to URL failure: %s",
+					e.toString());
+			url = null;
+		}
+		
+		if (url == null) {
+			return false;
+		}
+		
+		return isInWhiteList(context, url);
+	}
+	
+	public static boolean isInWhiteList(Context context, URL url) {
+		if (context == null || url == null) {
+			return false;
+		}
+		
+		final boolean isInclude = sInclusionList.contains(context, url);
+		final boolean isExclude = sExclusionList.contains(context, url);
+		Logger.debug("[include = %s, exclude = %s], url = %s", 
+				isInclude, isExclude, url);
+		
+		if (isInclude && !isExclude) {
+			return true;
+		}
+		
+		return false;
+	}
+	
+}

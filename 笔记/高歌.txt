@@ -1,0 +1,90 @@
+姓    名：高歌13264013475  hhgg-123@126.com
+性    别：男
+出生日期：1986年12月7日
+年    龄：24岁
+
+职业技能与特长
+熟悉Java　SE、JSP、Servlet、JDBC、Struts开发，精通Struts，Spring,Hibernate，等流行框架，善于J2EE开发和在Linux环境下编程,熟悉三层开发模式，熟悉J2EE等开发框架，能解决JavaEE，B/S结构开发中的常见问题，熟悉Eclipse等开发工具的使用，了解CVS等版本控制原理,熟练操作ORACLE和SQLSERVER数据库,熟悉js代码编写，有div+css的页面设计经验，熟练掌握单元测试理论和方法，熟悉面向对象编程思想，对开发模式、设计模式有一定认识,具备独立模块设计、开发能力。良好的英文口语和读写能力。
+
+工作经验
+2009.5-至今  软通动力
+2011.6-至今  法国电信（外派）
+
+2009.5-2011.6  联想移动科技有限公司（外派）
+职责和业绩：
+1、负责联想乐phone设置模块的开发与移植工作，开发周期是2009年10月至2010年4月，包括中国联通和中国电信两个版本，该模块是在google源代码上进行移植，编译，并加入联想自己定制的功能。在andriod系统的framework层增加新的设置属性，负责给其他应用组，如系统组，Ui组提供接口等等。对应android源代码目录中的packages/apps/Settings
+2、中国电信备份模块，从2010年6月至2010年11月，该项目是联想给中国电信定制机中添加的新应用，该应用在google原系统中并未实现。从项目的解决方案，到项目的代码编写，后期测试，设计文档的编写都由自己独立完成，该项目采用业界领先的同步协议syncml，综合用到了google 2.2系统中同步机制。该项目包括的开发模块涉及有网络模块，xml解析，组装模块，android数据库存储，Ui设计与应用，android源代码编译与调试，日志记录模块，更改日志跟踪模块，vcard联系人模块等等，同步引擎模块等
+3、锁屏软件，该锁屏软件是法国电信在英国，法国等欧洲国家上市的一个项目，合作厂商是中兴，acer,三星等，我的工作主要是对该项目的维护和重构，该项目主要是通过对android framework层锁屏相关的代码进行修改，来替换系统锁屏的界面，这个锁屏系统包含了3个子模块：事件模块，音乐控制模块，系统信息模块。事件模块：可以将未接来电，未读短信，未读的voicemail信息显示到锁屏界面上；音乐控制模块，可以控制系统音乐的切换，播放等；系统信息模块，主要用来显示系统电量，时间信息等。
+教育背景
+2005.9-2009.6  通化师范学院  软件研发  本科
+
+IT技能
+技能:Java[精通，使用时间12个月]
+技能:JSP[精通，使用时间12个月]
+技能:LINUX[熟练，使用时间12个月] 
+技能:MySQL[精通，使用时间20个月] 
+技能:Oracle[熟练，使用时间3个月]
+技能:PostgreSql[熟练，使用时间3个月] 
+技能:C++[熟练，使用时间10个月]
+技能:Java[精通，使用时间20个月]
+技能:Ant[精通，使用时间6个月]
+技能:C++ builder[精通，使用时间6个月] 
+技能:Java[精通，使用时间10个月]
+
+证书
+2007年  JAVA工程师
+说 明：参加东方标准J2EE项目培训两个月，并在东方标准推出的NIT-PRO考试中，获得Java工程师认证。
+
+2007年软件工程师
+说 明：全国计算机软件水平与技术考试，即软考，级别是中级。
+
+2006年英语四级证书说 明：成绩：531分
+
+不就打扑克吗？
+上传至ReviewBoard时出错，出错原因：
+com.taobao.eclipse.plugin.reviewboard.core.exception.ReviewboardException
+HttpClient excuteMethod Error HttpCode=400
+
+ @Override
+    public Tab openTabToHomePage() {
+//        return openTab("http://www.baidu.com/", false, true, false);
+        LogHelper.d(LOGTAG, "homepage: " + mSettings.getHomePage());
+        return openTab(mSettings.getHomePage(), false, true, false);
+    }
+
+192.168.12.186
+http://192.168.12.186/svn/repos
+http://123.127.237.186/svn/repos
+
+Base Directory:
+
+http://192.168.12.186/svn/repos/browser_beijing/trunk/CygnusBrowser
+
+
+fix the bug which  once have a  long click on a downloading item,the contextmenu shows automatically after the dowanload complete.
+
+
+
+<TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="45dp"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/hand"
+        android:text="@string/help_start_efficient_read"
+        android:textColor="@color/white"
+        android:textSize="20dp" />
+
+    <ImageView
+        android:id="@+id/hand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginLeft="32dp"
+        android:layout_marginTop="34dp"
+        android:src="@drawable/hand" />
+
+android:layout_alignLeft="@+id/hand"
+android:layout_marginLeft="32dp"
